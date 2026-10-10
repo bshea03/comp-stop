@@ -105,7 +105,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
     <main className="mx-auto w-full max-w-5xl px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-14">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Sold Comps
+          CompStop
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
           Check what a garment actually sells for on eBay, Poshmark, Vinted, and

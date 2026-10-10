@@ -19,7 +19,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Sold Comps | Reselling Helper",
+  title: "CompStop — sold comps across marketplaces",
   description:
     "Search sold garment listings across eBay, Poshmark, Vinted, and Depop and compare the average sold price on each.",
 };

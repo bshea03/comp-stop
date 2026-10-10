@@ -1,4 +1,6 @@
-# Reselling Helper
+# CompStop
+
+Repository: **`comp-stop`**
 
 Search sold garment listings across eBay, Poshmark, Vinted, and Depop from one
 query and compare the average sold price on each, so you know what a piece is
