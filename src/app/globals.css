@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: oklch(98.4% 0.003 247.9);
+  --foreground: oklch(21% 0.034 264.7);
+  --surface: oklch(100% 0 0);
+  --surface-muted: oklch(96.8% 0.005 247.9);
+  --border: oklch(92.3% 0.008 264.5);
+  --muted: oklch(55.1% 0.023 264.4);
+  --accent: oklch(52.7% 0.154 150.1);
+  --accent-soft: oklch(96.2% 0.041 157.4);
+  --warning: oklch(55.5% 0.113 71.1);
+  --warning-soft: oklch(96.6% 0.045 89.6);
+  --danger: oklch(55.3% 0.195 25.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(17.8% 0.015 264.7);
+    --foreground: oklch(96.2% 0.004 247.9);
+    --surface: oklch(22.3% 0.017 264.7);
+    --surface-muted: oklch(26.1% 0.019 264.7);
+    --border: oklch(32.1% 0.02 264.7);
+    --muted: oklch(70.7% 0.019 264.4);
+    --accent: oklch(72.3% 0.154 150.1);
+    --accent-soft: oklch(28% 0.055 155);
+    --warning: oklch(79.5% 0.127 79.1);
+    --warning-soft: oklch(29.5% 0.055 75);
+    --danger: oklch(70.4% 0.173 22.2);
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-subtle: var(--border);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Marketplace brand colors, used for the comparison chart and card accents. */
+@theme {
+  --color-ebay: oklch(52.3% 0.212 258.3);
+  --color-poshmark: oklch(45.6% 0.265 311.9);
+  --color-vinted: oklch(49.6% 0.078 203.9);
+  --color-depop: oklch(58.4% 0.233 28.5);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Tabular figures keep price columns from shifting as digits change. */
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
