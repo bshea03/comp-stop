@@ -10,7 +10,13 @@ import {
   MarketplaceCardSkeleton,
 } from "@/components/marketplace-card";
 import { MockDataNotice } from "@/components/mock-data-notice";
+import { ResultsLoadingShell } from "@/components/results-loading-shell";
+import {
+  MarketplaceLoadTracker,
+  SearchStateProvider,
+} from "@/components/search-state";
 import { SearchForm, SearchFormSkeleton } from "@/components/search-form";
+import { buildSearchParams } from "@/lib/schema";
 import type { MarketplaceId, SearchQuery } from "@/lib/marketplaces/types";
 import { parseSearchParams, TIME_WINDOWS } from "@/lib/schema";
 import {
@@ -63,37 +69,59 @@ async function Results({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const query = parseSearchParams(await searchParams);
   if (!query) return <EmptyState />;
 
+  const searchKey = buildSearchParams(query);
+
   return (
-    <div className="space-y-6">
-      <QueryRecap query={query} />
+    <ResultsLoadingShell
+      showResults
+      marketplaces={REGISTERED_MARKETPLACES}
+      recap={<QueryRecap query={query} />}
+    >
+      <div className="space-y-6">
+        <QueryRecap query={query} />
 
-      <Suspense fallback={<ComparisonBarSkeleton />}>
-        <SummaryBlock query={query} />
-      </Suspense>
+        <Suspense
+          key={`summary-${searchKey}`}
+          fallback={<ComparisonBarSkeleton loading />}
+        >
+          <SummaryBlock query={query} />
+        </Suspense>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        {REGISTERED_MARKETPLACES.map(({ id, label }) => (
-          <Suspense
-            key={id}
-            fallback={
-              <MarketplaceCardSkeleton marketplace={id} label={label} />
-            }
-          >
-            <MarketplaceResultCard marketplace={id} query={query} />
-          </Suspense>
-        ))}
+        <div className="grid gap-5 md:grid-cols-2">
+          {REGISTERED_MARKETPLACES.map(({ id, label }) => (
+            <Suspense
+              key={`${id}-${searchKey}`}
+              fallback={
+                <MarketplaceCardSkeleton
+                  marketplace={id}
+                  label={label}
+                  loading
+                />
+              }
+            >
+              <MarketplaceLoadTracker marketplace={id}>
+                <MarketplaceResultCard marketplace={id} query={query} />
+              </MarketplaceLoadTracker>
+            </Suspense>
+          ))}
+        </div>
       </div>
-    </div>
+    </ResultsLoadingShell>
   );
 }
 
 function ResultsSkeleton() {
   return (
     <div className="space-y-6">
-      <ComparisonBarSkeleton />
+      <ComparisonBarSkeleton loading />
       <div className="grid gap-5 md:grid-cols-2">
         {REGISTERED_MARKETPLACES.map(({ id, label }) => (
-          <MarketplaceCardSkeleton key={id} marketplace={id} label={label} />
+          <MarketplaceCardSkeleton
+            key={id}
+            marketplace={id}
+            label={label}
+            loading
+          />
         ))}
       </div>
     </div>
@@ -108,19 +136,21 @@ export default function Home({ searchParams }: PageProps<"/">) {
           CompStop
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          Check what a garment actually sells for on eBay, Poshmark, Vinted, and
-          Depop before you buy it.
+          Compare sold and active comps on eBay, Poshmark, Vinted, and Depop
+          before you buy.
         </p>
       </header>
 
       <div className="mt-6 space-y-6">
-        <Suspense fallback={<SearchFormSkeleton />}>
-          <SearchForm />
-        </Suspense>
+        <SearchStateProvider>
+          <Suspense fallback={<SearchFormSkeleton />}>
+            <SearchForm />
+          </Suspense>
 
-        <Suspense fallback={<ResultsSkeleton />}>
-          <Results searchParams={searchParams} />
-        </Suspense>
+          <Suspense fallback={<ResultsSkeleton />}>
+            <Results searchParams={searchParams} />
+          </Suspense>
+        </SearchStateProvider>
       </div>
     </main>
   );

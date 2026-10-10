@@ -50,7 +50,7 @@ export type PriceStats = {
 
 export type ListingKind = "sold" | "active";
 
-export type MarketplaceResultStatus = "ok" | "empty" | "error";
+export type MarketplaceResultStatus = "ok" | "empty" | "error" | "external";
 
 export type MarketplaceResult = {
   marketplace: MarketplaceId;
@@ -59,8 +59,12 @@ export type MarketplaceResult = {
   dataSource: DataSource;
   /** Whether prices are from sold comps or from active listings. */
   listingKind: ListingKind;
-  /** Shown on the card when live data is not sold comps (e.g. Vinted/Depop active listings). */
+  /** Shown on the card when live data is not sold comps (e.g. Vinted active listings). */
   resultCaveat?: string;
+  /** Primary copy when `status` is `external` (e.g. Depop link-out). */
+  externalMessage?: string;
+  /** Development-only hint on external cards (not shown in production builds). */
+  devNote?: string;
   /** The same search run on the marketplace itself, for verifying comps. */
   searchUrl: string;
   listings: SoldListing[];

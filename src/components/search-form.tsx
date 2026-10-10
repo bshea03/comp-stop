@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchState } from "@/components/search-state";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useCallback } from "react";
 
 import {
   buildSearchParams,
@@ -50,7 +51,7 @@ export function SearchFormSkeleton() {
 export function SearchForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { isSearching, startTransition, beginSearch } = useSearchState();
 
   const current = {
     keywords: searchParams.get(SEARCH_PARAM_KEYS.keywords) ?? "",
@@ -60,26 +61,57 @@ export function SearchForm() {
     daysBack: searchParams.get(SEARCH_PARAM_KEYS.daysBack) ?? String(DEFAULT_DAYS_BACK),
   };
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const read = (key: string) => (data.get(key) as string | null)?.trim() || undefined;
+  const currentSearchKey = current.keywords
+    ? buildSearchParams({
+        keywords: current.keywords,
+        brand: current.brand || undefined,
+        size: current.size || undefined,
+        condition: (current.condition || undefined) as
+          | (typeof CONDITIONS)[number]
+          | undefined,
+        daysBack: Number(current.daysBack),
+      })
+    : "";
 
-    const keywords = read(SEARCH_PARAM_KEYS.keywords);
-    if (!keywords) return;
+  const handleSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (isSearching) return;
 
-    const search = buildSearchParams({
-      keywords,
-      brand: read(SEARCH_PARAM_KEYS.brand),
-      size: read(SEARCH_PARAM_KEYS.size),
-      condition: read(SEARCH_PARAM_KEYS.condition) as
-        | (typeof CONDITIONS)[number]
-        | undefined,
-      daysBack: Number(data.get(SEARCH_PARAM_KEYS.daysBack)),
-    });
+      const data = new FormData(event.currentTarget);
+      const read = (key: string) =>
+        (data.get(key) as string | null)?.trim() || undefined;
 
-    startTransition(() => router.push(`/?${search}`));
-  }
+      const keywords = read(SEARCH_PARAM_KEYS.keywords);
+      if (!keywords) return;
+
+      const nextSearch = buildSearchParams({
+        keywords,
+        brand: read(SEARCH_PARAM_KEYS.brand),
+        size: read(SEARCH_PARAM_KEYS.size),
+        condition: read(SEARCH_PARAM_KEYS.condition) as
+          | (typeof CONDITIONS)[number]
+          | undefined,
+        daysBack: Number(data.get(SEARCH_PARAM_KEYS.daysBack)),
+      });
+
+      beginSearch();
+      startTransition(() => {
+        if (nextSearch === currentSearchKey && currentSearchKey.length > 0) {
+          router.refresh();
+        } else {
+          router.push(`/?${nextSearch}`);
+        }
+      });
+    },
+    [
+      beginSearch,
+      currentSearchKey,
+      isSearching,
+      router,
+      startTransition,
+    ],
+  );
 
   return (
     // Remounting on URL change keeps the uncontrolled fields in step with
@@ -169,10 +201,11 @@ export function SearchForm() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isSearching}
+          aria-busy={isSearching}
           className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isPending ? "Searching..." : "Search sold comps"}
+          {isSearching ? "Searching..." : "Search sold comps"}
         </button>
         {current.keywords ? (
           <Link

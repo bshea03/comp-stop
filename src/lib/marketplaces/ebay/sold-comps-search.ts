@@ -5,6 +5,53 @@ import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
 
 const SOLD_COMPS_API = "https://api.sold-comps.com/v1/scrape";
 const MAX_PER_PAGE = 240;
+const SOLD_COMPS_JSON_PARSE_ATTEMPTS = 3;
+const SOLD_COMPS_JSON_RETRY_DELAYS_MS = [500, 1_500];
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(
+        signal.reason ?? new DOMException("Aborted", "AbortError"),
+      );
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(
+          signal.reason ?? new DOMException("Aborted", "AbortError"),
+        );
+      },
+      { once: true },
+    );
+  });
+}
+
+function parseSoldCompsJson(raw: string): SoldCompsResponse {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error("SoldComps API returned an empty body.");
+  }
+  return JSON.parse(trimmed) as SoldCompsResponse;
+}
+
+/** SoldComps scrapes eBay live — smaller requests finish faster. */
+function ebaySoldCompsFetchLimit(query: SearchQuery): number {
+  const raw = process.env.EBAY_SOLD_COMPS_MAX_LISTINGS?.trim();
+  const cap = raw ? Number.parseInt(raw, 10) : 30;
+  const resolved = Number.isFinite(cap) && cap > 0 ? cap : 30;
+  return Math.min(query.limit, resolved, MAX_PER_PAGE);
+}
+
+function ebaySoldCompsMaxPages(): number {
+  const raw = process.env.EBAY_SOLD_COMPS_MAX_PAGES?.trim();
+  const n = raw ? Number.parseInt(raw, 10) : 1;
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 5);
+}
 
 type SoldCompsItem = {
   itemId?: string;
@@ -59,46 +106,70 @@ async function fetchSoldCompsPage(
   apiKey: string,
   query: SearchQuery,
   page: number,
+  perPage: number,
   signal: AbortSignal,
 ): Promise<SoldCompsResponse> {
   const params = new URLSearchParams({
     keyword: keywordString(query),
     ebaySite: "ebay.com",
-    count: String(Math.min(query.limit, MAX_PER_PAGE)),
+    count: String(perPage),
     page: String(page),
   });
+  const url = `${SOLD_COMPS_API}?${params.toString()}`;
 
-  const response = await fetch(`${SOLD_COMPS_API}?${params.toString()}`, {
-    signal,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: "application/json",
-    },
-  });
+  let lastParseError: Error | undefined;
 
-  const raw = await response.text();
+  for (let attempt = 0; attempt < SOLD_COMPS_JSON_PARSE_ATTEMPTS; attempt++) {
+    if (attempt > 0) {
+      await sleep(
+        SOLD_COMPS_JSON_RETRY_DELAYS_MS[attempt - 1] ?? 1_500,
+        signal,
+      );
+    }
 
-  if (response.status === 401 || response.status === 403) {
-    throw new Error(
-      "SoldComps rejected the API key. Check SOLD_COMPS_API_KEY in the environment.",
-    );
-  }
-  if (response.status === 429) {
-    throw new Error(
-      "SoldComps rate limit reached. Wait a minute or upgrade your SoldComps plan.",
-    );
-  }
-  if (!response.ok) {
-    throw new Error(
-      `SoldComps API HTTP ${response.status}: ${raw.slice(0, 160)}`,
-    );
+    const response = await fetch(url, {
+      signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+    });
+
+    const raw = await response.text();
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(
+        "SoldComps rejected the API key. Check SOLD_COMPS_API_KEY in the environment.",
+      );
+    }
+    if (response.status === 429) {
+      throw new Error(
+        "SoldComps rate limit reached. Wait a minute or upgrade your SoldComps plan.",
+      );
+    }
+    if (!response.ok) {
+      throw new Error(
+        `SoldComps API HTTP ${response.status}: ${raw.slice(0, 160)}`,
+      );
+    }
+
+    try {
+      return parseSoldCompsJson(raw);
+    } catch (error) {
+      lastParseError =
+        error instanceof Error
+          ? error
+          : new Error("SoldComps API returned invalid JSON.");
+      if (attempt < SOLD_COMPS_JSON_PARSE_ATTEMPTS - 1) {
+        continue;
+      }
+    }
   }
 
-  try {
-    return JSON.parse(raw) as SoldCompsResponse;
-  } catch {
-    throw new Error("SoldComps API returned invalid JSON.");
-  }
+  throw (
+    lastParseError ??
+    new Error("SoldComps API returned invalid JSON after retries.")
+  );
 }
 
 /** eBay sold comps via https://sold-comps.com */
@@ -113,17 +184,27 @@ export async function searchEbaySoldComps(
     );
   }
 
+  const fetchLimit = ebaySoldCompsFetchLimit(query);
+  const maxPages = ebaySoldCompsMaxPages();
   const listings: SoldListing[] = [];
   let page = 1;
   let hasNextPage = true;
 
-  while (listings.length < query.limit && hasNextPage && page <= 5) {
-    const body = await fetchSoldCompsPage(apiKey, query, page, signal);
+  while (listings.length < fetchLimit && hasNextPage && page <= maxPages) {
+    const remaining = fetchLimit - listings.length;
+    const perPage = Math.min(remaining, MAX_PER_PAGE);
+    const body = await fetchSoldCompsPage(
+      apiKey,
+      query,
+      page,
+      perPage,
+      signal,
+    );
 
     for (const item of body.items ?? []) {
       const mapped = mapSoldCompsItem(item);
       if (mapped) listings.push(mapped);
-      if (listings.length >= query.limit) break;
+      if (listings.length >= fetchLimit) break;
     }
 
     hasNextPage = body.hasNextPage === true;
@@ -132,6 +213,6 @@ export async function searchEbaySoldComps(
 
   return filterListingsByDaysBack(listings, query.daysBack).slice(
     0,
-    query.limit,
+    fetchLimit,
   );
 }

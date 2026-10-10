@@ -1,3 +1,4 @@
+import { CircleLoader } from "@/components/circle-loader";
 import { MARKETPLACE_THEME } from "@/components/marketplace-theme";
 import {
   formatCentsRounded,
@@ -12,13 +13,17 @@ import { computeBlendedStats } from "@/lib/stats";
 
 type PricedResult = MarketplaceResult & { stats: PriceStats };
 
-export function ComparisonBarSkeleton() {
+export function ComparisonBarSkeleton({ loading = true }: { loading?: boolean }) {
   return (
     <div className="rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm">
-      <div className="animate-pulse space-y-3">
-        <div className="h-10 w-48 rounded-md bg-surface-muted" />
-        <div className="h-24 rounded-md bg-surface-muted" />
-      </div>
+      {loading ? (
+        <CircleLoader label="Building comparison…" className="py-4" />
+      ) : (
+        <div className="animate-pulse space-y-3">
+          <div className="h-10 w-48 rounded-md bg-surface-muted" />
+          <div className="h-24 rounded-md bg-surface-muted" />
+        </div>
+      )}
     </div>
   );
 }

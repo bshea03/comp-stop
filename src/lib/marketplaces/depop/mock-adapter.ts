@@ -1,7 +1,5 @@
-import {
-  createMockAdapter,
-  keywordString,
-} from "@/lib/marketplaces/mock/create-mock-adapter";
+import { buildDepopSearchUrl } from "@/lib/marketplaces/depop/external";
+import { createMockAdapter } from "@/lib/marketplaces/mock/create-mock-adapter";
 
 export const depopMockAdapter = createMockAdapter({
   id: "depop",
@@ -13,8 +11,6 @@ export const depopMockAdapter = createMockAdapter({
     currency: "USD",
     latencyMs: { min: 240, max: 820 },
   },
-  buildSearchUrl: (query) => {
-    const params = new URLSearchParams({ q: keywordString(query) });
-    return `https://www.depop.com/search/?${params.toString()}`;
-  },
+  buildSearchUrl: buildDepopSearchUrl,
+  buildListingUrl: buildDepopSearchUrl,
 });

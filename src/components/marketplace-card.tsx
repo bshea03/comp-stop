@@ -1,10 +1,11 @@
+import { CircleLoader } from "@/components/circle-loader";
 import { ListingsTable } from "@/components/listings-table";
 import { MARKETPLACE_THEME } from "@/components/marketplace-theme";
-import {
-  formatCentsRounded,
-  formatDateRange,
-} from "@/lib/format";
-import type { MarketplaceId, MarketplaceResult } from "@/lib/marketplaces/types";
+import { formatCentsRounded, formatDateRange } from "@/lib/format";
+import type {
+  MarketplaceId,
+  MarketplaceResult,
+} from "@/lib/marketplaces/types";
 
 function CardShell({
   marketplace,
@@ -48,21 +49,30 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function MarketplaceCardSkeleton({
   marketplace,
   label,
+  loading = true,
 }: {
   marketplace: MarketplaceId;
   label: string;
+  loading?: boolean;
 }) {
   return (
-    <CardShell marketplace={marketplace} label={label}>
-      <div className="mt-4 animate-pulse space-y-3">
-        <div className="h-9 w-32 rounded-md bg-surface-muted" />
-        <div className="grid grid-cols-3 gap-3">
-          <div className="h-9 rounded-md bg-surface-muted" />
-          <div className="h-9 rounded-md bg-surface-muted" />
-          <div className="h-9 rounded-md bg-surface-muted" />
-        </div>
-        <div className="h-4 w-40 rounded-md bg-surface-muted" />
-      </div>
+    <CardShell
+      marketplace={marketplace}
+      label={label}
+      badge={
+        loading ? (
+          <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-muted">
+            Fetching
+          </span>
+        ) : undefined
+      }
+    >
+      <CircleLoader
+        marketplace={marketplace}
+        label={`Fetching ${label} comps…`}
+        className="min-h-[10rem]"
+      />
+      <span className="sr-only">{`Fetching ${label} comps`}</span>
     </CardShell>
   );
 }
@@ -82,6 +92,39 @@ export function MarketplaceCard({ result }: { result: MarketplaceResult }) {
         Live sold
       </span>
     );
+
+  if (result.status === "external") {
+    return (
+      <CardShell
+        marketplace={result.marketplace}
+        label={result.label}
+        badge={
+          <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-muted">
+            Search on site
+          </span>
+        }
+      >
+        {result.resultCaveat ? (
+          <p className="mt-3 text-xs text-muted">{result.resultCaveat}</p>
+        ) : null}
+        <p className="mt-4 text-sm text-muted">
+          {result.externalMessage ??
+            "Open this marketplace with the same search to browse listings there."}
+        </p>
+        {result.devNote ? (
+          <p className="mt-2 text-xs text-warning">{result.devNote}</p>
+        ) : null}
+        <a
+          href={result.searchUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="mt-4 inline-flex text-sm font-semibold text-accent hover:underline"
+        >
+          Search Depop for this item
+        </a>
+      </CardShell>
+    );
+  }
 
   if (result.status === "error") {
     return (
@@ -189,7 +232,7 @@ export function MarketplaceCard({ result }: { result: MarketplaceResult }) {
         {result.marketplace === "ebay"
           ? result.listingKind === "active"
             ? "Verify active listings on eBay"
-            : "Verify sold comps on eBay"
+            : "Verify on eBay"
           : `Verify on ${result.label}`}
       </a>
     </CardShell>

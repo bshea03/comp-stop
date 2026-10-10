@@ -2,6 +2,8 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { z } from "zod";
 
+import { dedupeListingsById } from "@/lib/dedupe-listings";
+import { runDepopMarketplace } from "@/lib/marketplaces/depop/run-depop";
 import { MARKETPLACE_ADAPTERS } from "@/lib/marketplaces/registry";
 import type {
   MarketplaceAdapter,
@@ -10,6 +12,10 @@ import type {
   SearchQuery,
   SoldListing,
 } from "@/lib/marketplaces/types";
+import {
+  searchCacheRevalidateSeconds,
+  searchQueryCacheKey,
+} from "@/lib/search-cache";
 import { searchQuerySchema, soldListingSchema } from "@/lib/schema";
 import { computePriceStats } from "@/lib/stats";
 
@@ -21,14 +27,6 @@ function adapterTimeoutMs(adapter: MarketplaceAdapter): number {
 }
 
 const adapterResultSchema = z.array(soldListingSchema);
-
-/** Reuse live adapter results across requests (helps free third-party quotas). */
-function searchCacheRevalidateSeconds(): number | false {
-  const raw = process.env.SEARCH_CACHE_REVALIDATE_SECONDS?.trim();
-  if (raw === "0" || raw === "false") return false;
-  const parsed = raw ? Number.parseInt(raw, 10) : 21_600;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 21_600;
-}
 
 async function invokeAdapterSearch(
   adapter: MarketplaceAdapter,
@@ -43,7 +41,7 @@ async function invokeAdapterSearch(
   const revalidate = searchCacheRevalidateSeconds();
   if (revalidate === false) return run();
 
-  const cacheKey = `${adapter.id}:${queryKey(query)}`;
+  const cacheKey = `${adapter.id}:${searchQueryCacheKey(query)}`;
   return unstable_cache(run, ["marketplace-listings", cacheKey], {
     revalidate,
   })();
@@ -80,7 +78,7 @@ async function runAdapter(
 
   try {
     const raw = await invokeAdapterSearch(adapter, query);
-    const listings = adapterResultSchema.parse(raw);
+    const listings = dedupeListingsById(adapterResultSchema.parse(raw));
 
     return {
       ...base,
@@ -100,23 +98,6 @@ async function runAdapter(
 }
 
 /**
- * Stable cache key for a search. `cache` compares arguments by identity, so a
- * string key keeps the memoization working even when callers parse the same
- * search params into separate objects. Undefined fields are dropped by
- * `JSON.stringify`, which is what the optional schema fields expect back.
- */
-function queryKey(query: SearchQuery): string {
-  return JSON.stringify({
-    keywords: query.keywords,
-    brand: query.brand,
-    size: query.size,
-    condition: query.condition,
-    daysBack: query.daysBack,
-    limit: query.limit,
-  });
-}
-
-/**
  * Starts every adapter at once and memoizes the in-flight promises for the
  * duration of the request. The results grid and the comparison summary read
  * the same promises, so each marketplace is only searched once per request even
@@ -125,12 +106,14 @@ function queryKey(query: SearchQuery): string {
 const startSearch = cache(
   (key: string): Map<MarketplaceId, Promise<MarketplaceResult>> => {
     const parsed = searchQuerySchema.parse(JSON.parse(key));
-    return new Map(
+    const pending = new Map<MarketplaceId, Promise<MarketplaceResult>>(
       MARKETPLACE_ADAPTERS.map((adapter) => [
         adapter.id,
         runAdapter(adapter, parsed),
       ]),
     );
+    pending.set("depop", runDepopMarketplace(parsed));
+    return pending;
   },
 );
 
@@ -139,7 +122,7 @@ export function searchMarketplace(
   marketplace: MarketplaceId,
   query: SearchQuery,
 ): Promise<MarketplaceResult> {
-  const pending = startSearch(queryKey(query)).get(marketplace);
+  const pending = startSearch(searchQueryCacheKey(query)).get(marketplace);
   if (!pending) {
     throw new Error(`No adapter registered for "${marketplace}".`);
   }
@@ -150,10 +133,13 @@ export function searchMarketplace(
 export function searchAllMarketplaces(
   query: SearchQuery,
 ): Promise<MarketplaceResult[]> {
-  return Promise.all([...startSearch(queryKey(query)).values()]);
+  return Promise.all([...startSearch(searchQueryCacheKey(query)).values()]);
 }
 
 export const REGISTERED_MARKETPLACES: readonly {
   id: MarketplaceId;
   label: string;
-}[] = MARKETPLACE_ADAPTERS.map(({ id, label }) => ({ id, label }));
+}[] = [
+  ...MARKETPLACE_ADAPTERS.map(({ id, label }) => ({ id, label })),
+  { id: "depop", label: "Depop" },
+];

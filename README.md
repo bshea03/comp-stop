@@ -42,14 +42,17 @@ sample data for offline work.
 | Poshmark    | `GET /vm-rest/posts` with `inventory_status[]=sold_out` | **Sold** comps with photos and sold dates |
 | eBay        | [SoldComps API](https://sold-comps.com/) (`SOLD_COMPS_API_KEY`) | **Sold** comps (final prices, ~90-day window) |
 | Vinted      | Catalog search HTML | **Active** listings (Vinted removes sold items) |
-| Depop       | Search page HTML | **Active** listings (sold items are not keyword-searchable) |
+| Depop       | Link-out to depop.com (default) or Bright Data if approved | **Active** listings in-app only with a business Bright Data + Depop KYC; otherwise **Search on site** |
 
 Cards label **Live sold**, **Active listings**, or **Sample data**. A banner
 calls out mock adapters and any site that is live but not sold comps.
 
-Copy `.env.example` to `.env.local` and set **`SOLD_COMPS_API_KEY`** from
-[sold-comps.com](https://sold-comps.com/) (Dashboard → API key). Restart `pnpm dev`
-after changing env vars.
+Copy `.env.example` to `.env.local` and set **`SOLD_COMPS_API_KEY`** (eBay). For
+**personal / hobby use**, keep **`DEPO_LINK_OUT=1`** (default in `.env.example`) so
+Depop opens on depop.com with the same query — no Bright Data account needed. In-app
+Depop grids require [Bright Data](https://brightdata.com/) Web Unlocker plus business
+[KYC](https://brightdata.com/cp/kyc) for Depop (`policy_20050`), which most personal
+accounts cannot complete. Restart `pnpm dev` after changing env vars.
 
 eBay **sold** data is billed by SoldComps (free tier: **100 searches/month**; paid
 plans for more). Identical searches are cached server-side for **6 hours** by default
@@ -126,11 +129,23 @@ Adding a fifth marketplace is the same work plus one entry in
    | Variable | Required | Notes |
    | -------- | -------- | ----- |
    | `SOLD_COMPS_API_KEY` | Yes (for live eBay) | From [sold-comps.com](https://sold-comps.com/) |
+   | `DEPO_LINK_OUT` | Depop | `1` (default) = link-out for personal use; `0` only if Bright Data + Depop KYC approved |
+   | `BRIGHTDATA_API_KEY` | Depop in-app (optional) | Business Bright Data account with Depop KYC |
+   | `BRIGHTDATA_UNLOCKER_ZONE` | Depop in-app (optional) | Web Unlocker zone name |
    | `SEARCH_CACHE_REVALIDATE_SECONDS` | No | Default 6h; `0` disables cache |
    | `USE_MOCK_MARKETPLACES` | No | Set to `1` for demo/staging without live scrapes |
-
-4. Deploy. Server-side fetches (Poshmark, Vinted, Depop HTML, SoldComps) run on
-   Vercel’s Node runtime; no extra config is required for a standard Next.js app.
+4. Deploy. Server-side fetches (Poshmark, Vinted, SoldComps) run on Vercel’s Node
+   runtime. **Depop** uses link-out (`DEPO_LINK_OUT=1`) unless you run in-app Depop
+   with an approved Bright Data + KYC setup.
 
 **Quota:** SoldComps counts each uncached search. The built-in cache reduces
 repeat lookups for the same query parameters within the revalidate window.
+
+**eBay speed:** SoldComps performs a live eBay scrape, so eBay is usually the
+slowest card. Defaults cap at **30 listings** and **1 API page** per search
+(`EBAY_SOLD_COMPS_MAX_LISTINGS`, `EBAY_SOLD_COMPS_MAX_PAGES`). Raise those for
+more comps at the cost of latency; repeats within the cache window stay fast.
+
+**Depop (optional in-app):** With `DEPO_LINK_OUT=0` and Bright Data approved for
+Depop, Web Unlocker uses about **1 credit per search** (plus the 6h app cache).
+Personal deployments should keep link-out enabled.

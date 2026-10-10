@@ -33,7 +33,11 @@ function ListingRow({ listing }: { listing: SoldListing }) {
   );
 }
 
-const PREVIEW_COUNT = 6;
+const PREVIEW_COUNT = 5;
+
+function listingRowKey(listing: SoldListing, index: number): string {
+  return `${listing.marketplace}-${listing.id}-${index}`;
+}
 
 function PhotoStrip({ listings }: { listings: SoldListing[] }) {
   const preview = listings.slice(0, PREVIEW_COUNT);
@@ -41,8 +45,8 @@ function PhotoStrip({ listings }: { listings: SoldListing[] }) {
 
   return (
     <ul className="mb-3 flex flex-wrap gap-1.5" aria-hidden>
-      {preview.map((listing) => (
-        <li key={listing.id}>
+      {preview.map((listing, index) => (
+        <li key={listingRowKey(listing, index)}>
           <ListingThumbnail listing={listing} />
         </li>
       ))}
@@ -94,8 +98,11 @@ export function ListingsTable({ result }: { result: MarketplaceResult }) {
             </tr>
           </thead>
           <tbody>
-            {result.listings.map((listing) => (
-              <ListingRow key={listing.id} listing={listing} />
+            {result.listings.map((listing, index) => (
+              <ListingRow
+                key={listingRowKey(listing, index)}
+                listing={listing}
+              />
             ))}
           </tbody>
         </table>
