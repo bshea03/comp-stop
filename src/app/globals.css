@@ -51,6 +51,8 @@
 @theme {
   --color-ebay: oklch(52.3% 0.212 258.3);
   --color-poshmark: oklch(45.6% 0.265 311.9);
+  --color-mercari: oklch(62.5% 0.245 25.2);
+  --color-grailed: oklch(35% 0.01 264.7);
   --color-vinted: oklch(49.6% 0.078 203.9);
   --color-depop: oklch(58.4% 0.233 28.5);
 }

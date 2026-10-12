@@ -6,6 +6,7 @@ import {
   formatPercentDelta,
 } from "@/lib/format";
 import type {
+  ListingKind,
   MarketplaceResult,
   PriceStats,
 } from "@/lib/marketplaces/types";
@@ -28,23 +29,34 @@ export function ComparisonBarSkeleton({ loading = true }: { loading?: boolean })
   );
 }
 
-export function ComparisonBar({ results }: { results: MarketplaceResult[] }) {
-  const priced = results.filter(
-    (result): result is PricedResult => result.stats !== null,
-  );
+function ComparisonSection({
+  listingKind,
+  priced,
+}: {
+  listingKind: ListingKind;
+  priced: readonly PricedResult[];
+}) {
   if (priced.length === 0) return null;
 
-  const blended = computeBlendedStats(results.map((result) => result.listings));
+  const blended = computeBlendedStats(priced.map((result) => result.listings));
   const highest = Math.max(
     ...priced.map((result) => result.stats.trimmedMeanCents),
   );
+
+  const isSold = listingKind === "sold";
+  const heading = isSold
+    ? "Average sold price across marketplaces"
+    : "Average asking price across marketplaces";
+  const footnote = isSold
+    ? "Bars show the trimmed mean sold price. Item price only; excludes shipping when reported. Percentages compare each site to the sold average."
+    : "Bars show the trimmed mean asking price from listings currently for sale. Percentages compare each site to the active average.";
 
   return (
     <section className="rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-xs font-medium uppercase tracking-wide text-muted">
-            Average across marketplaces
+            {heading}
           </h2>
           {blended ? (
             <>
@@ -55,20 +67,21 @@ export function ComparisonBar({ results }: { results: MarketplaceResult[] }) {
                 )}
               </p>
               <p className="mt-1 text-sm text-muted">
-                {`${formatCount(blended.stats.count, "comp")} from ${formatCount(blended.marketplaceCount, "marketplace")}`}
+                {`${formatCount(blended.stats.count, isSold ? "sold comp" : "listing")} from ${formatCount(blended.marketplaceCount, "marketplace")}`}
               </p>
             </>
           ) : (
             <p className="mt-1 max-w-md text-sm text-muted">
-              Marketplaces reported different currencies, so a combined average
-              would be misleading. Compare the per-site figures below instead.
+              {isSold
+                ? "Sold comps reported different currencies, so a combined average would be misleading. Compare the per-site figures below instead."
+                : "Active listings reported different currencies, so a combined average would be misleading. Compare the per-site figures below instead."}
             </p>
           )}
         </div>
 
         {priced.length > 1 ? (
           <p className="text-sm text-muted">
-            Best average:{" "}
+            {isSold ? "Highest sold average" : "Highest asking average"}:{" "}
             <span className="font-semibold text-foreground">
               {
                 priced.reduce((best, result) =>
@@ -114,10 +127,21 @@ export function ComparisonBar({ results }: { results: MarketplaceResult[] }) {
         })}
       </ul>
 
-      <p className="mt-4 text-xs text-muted">
-        Bars show the trimmed mean; the percentage compares each site to the
-        blended average.
-      </p>
+      <p className="mt-4 text-xs text-muted">{footnote}</p>
     </section>
   );
+}
+
+export function ComparisonBarForKind({
+  results,
+  listingKind,
+}: {
+  results: readonly MarketplaceResult[];
+  listingKind: ListingKind;
+}) {
+  const priced = results.filter(
+    (result): result is PricedResult =>
+      result.stats !== null && result.listingKind === listingKind,
+  );
+  return <ComparisonSection listingKind={listingKind} priced={priced} />;
 }

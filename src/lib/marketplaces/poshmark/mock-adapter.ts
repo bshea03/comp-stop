@@ -1,7 +1,5 @@
-import {
-  createMockAdapter,
-  keywordString,
-} from "@/lib/marketplaces/mock/create-mock-adapter";
+import { createMockAdapter } from "@/lib/marketplaces/mock/create-mock-adapter";
+import { buildPoshmarkSoldSearchUrl } from "@/lib/marketplaces/poshmark/build-search-url";
 
 export const poshmarkMockAdapter = createMockAdapter({
   id: "poshmark",
@@ -13,11 +11,5 @@ export const poshmarkMockAdapter = createMockAdapter({
     currency: "USD",
     latencyMs: { min: 300, max: 850 },
   },
-  buildSearchUrl: (query) => {
-    const params = new URLSearchParams({
-      query: keywordString(query),
-      availability: "sold_out",
-    });
-    return `https://poshmark.com/search?${params.toString()}`;
-  },
+  buildSearchUrl: buildPoshmarkSoldSearchUrl,
 });

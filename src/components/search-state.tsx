@@ -19,10 +19,8 @@ import {
   DEFAULT_DAYS_BACK,
   SEARCH_PARAM_KEYS,
 } from "@/lib/schema";
-import {
-  MARKETPLACE_IDS,
-  type MarketplaceId,
-} from "@/lib/marketplaces/types";
+import { PANEL_SEARCH_IDS } from "@/lib/marketplaces/marketplace-panels";
+import type { PanelSearchId } from "@/lib/marketplaces/types";
 
 type SearchStateContextValue = {
   isSearching: boolean;
@@ -31,7 +29,7 @@ type SearchStateContextValue = {
   beginSearch: () => void;
   generation: number;
   markMarketplaceComplete: (
-    marketplace: MarketplaceId,
+    searchId: PanelSearchId,
     generation: number,
   ) => void;
 };
@@ -45,7 +43,6 @@ function searchKeyFromParams(params: URLSearchParams): string | null {
   return buildSearchParams({
     keywords,
     brand: params.get(SEARCH_PARAM_KEYS.brand)?.trim() || undefined,
-    size: params.get(SEARCH_PARAM_KEYS.size)?.trim() || undefined,
     condition: (params.get(SEARCH_PARAM_KEYS.condition)?.trim() ||
       undefined) as Parameters<typeof buildSearchParams>[0]["condition"],
     daysBack: Number(params.get(SEARCH_PARAM_KEYS.daysBack) ?? DEFAULT_DAYS_BACK),
@@ -77,13 +74,13 @@ export function SearchStateProvider({
 }) {
   const [isPending, startTransition] = useTransition();
   const [generation, setGeneration] = useState(0);
-  const [incomplete, setIncomplete] = useState<Set<MarketplaceId>>(new Set());
+  const [incomplete, setIncomplete] = useState<Set<PanelSearchId>>(new Set());
   const generationRef = useRef(0);
 
   const resetMarketplaceLoads = useCallback(() => {
     generationRef.current += 1;
     setGeneration(generationRef.current);
-    setIncomplete(new Set(MARKETPLACE_IDS));
+    setIncomplete(new Set(PANEL_SEARCH_IDS));
   }, []);
 
   const onSearchKeyChange = useCallback(
@@ -98,12 +95,12 @@ export function SearchStateProvider({
   );
 
   const markMarketplaceComplete = useCallback(
-    (marketplace: MarketplaceId, forGeneration: number) => {
+    (searchId: PanelSearchId, forGeneration: number) => {
       if (forGeneration !== generationRef.current) return;
       setIncomplete((prev) => {
-        if (!prev.has(marketplace)) return prev;
+        if (!prev.has(searchId)) return prev;
         const next = new Set(prev);
-        next.delete(marketplace);
+        next.delete(searchId);
         return next;
       });
     },
@@ -140,17 +137,17 @@ export function useSearchState(): SearchStateContextValue {
 }
 
 export function MarketplaceLoadTracker({
-  marketplace,
+  searchId,
   children,
 }: {
-  marketplace: MarketplaceId;
+  searchId: PanelSearchId;
   children: React.ReactNode;
 }) {
   const { generation, markMarketplaceComplete } = useSearchState();
 
   useEffect(() => {
-    markMarketplaceComplete(marketplace, generation);
-  }, [marketplace, generation, markMarketplaceComplete]);
+    markMarketplaceComplete(searchId, generation);
+  }, [searchId, generation, markMarketplaceComplete]);
 
   return children;
 }

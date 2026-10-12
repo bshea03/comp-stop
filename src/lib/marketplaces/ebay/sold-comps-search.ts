@@ -1,3 +1,4 @@
+import { soldCompsItemPriceCents } from "@/lib/listings/item-price-cents";
 import { stripEnv } from "@/lib/env";
 import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
 import { filterListingsByDaysBack } from "@/lib/marketplaces/live/filter-by-days";
@@ -62,6 +63,7 @@ type SoldCompsItem = {
   endedAt?: string;
   soldPrice?: string;
   totalPrice?: string;
+  shippingPrice?: string | null;
   soldCurrency?: string;
   thumbnailUrl?: string;
   fullResThumbnailUrl?: string;
@@ -78,10 +80,8 @@ function mapSoldCompsItem(item: SoldCompsItem): SoldListing | null {
   if (!item.itemId || !item.title || !item.url) return null;
   if (item.listingType && item.listingType !== "sold") return null;
 
-  const dollars = item.totalPrice ?? item.soldPrice;
-  if (!dollars) return null;
-
-  const priceCents = Math.round(parseFloat(dollars) * 100);
+  const priceCents = soldCompsItemPriceCents(item);
+  if (priceCents == null) return null;
   const currency = (item.soldCurrency ?? "USD").toUpperCase();
   if (currency.length !== 3) return null;
 

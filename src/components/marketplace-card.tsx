@@ -120,7 +120,11 @@ export function MarketplaceCard({ result }: { result: MarketplaceResult }) {
           rel="noreferrer noopener"
           className="mt-4 inline-flex text-sm font-semibold text-accent hover:underline"
         >
-          Search Depop for this item
+          {result.marketplace === "depop"
+            ? "Search Depop for this item"
+            : result.marketplace === "mercari"
+              ? "Search Mercari sold listings"
+              : `Search ${result.label} for this item`}
         </a>
       </CardShell>
     );
@@ -193,6 +197,11 @@ export function MarketplaceCard({ result }: { result: MarketplaceResult }) {
         <p className="text-3xl font-bold text-foreground tabular">
           {formatCentsRounded(stats.trimmedMeanCents, stats.currency)}
         </p>
+        {result.listingKind === "sold" ? (
+          <p className="mt-1 text-xs text-muted">
+            Item price only; excludes shipping when reported.
+          </p>
+        ) : null}
       </div>
 
       <dl className="mt-4 grid grid-cols-3 gap-3 rounded-xl bg-surface-muted p-3">

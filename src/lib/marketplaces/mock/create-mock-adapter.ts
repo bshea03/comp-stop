@@ -5,8 +5,10 @@ import {
   type MockProfile,
 } from "@/lib/marketplaces/mock/generate-listings";
 import type {
+  ListingKind,
   MarketplaceAdapter,
   MarketplaceId,
+  PanelSearchId,
   SearchQuery,
   SoldListing,
 } from "@/lib/marketplaces/types";
@@ -20,6 +22,8 @@ export function createMockAdapter(config: {
   id: MarketplaceId;
   label: string;
   profile: MockProfile;
+  listingKind?: ListingKind;
+  searchId?: PanelSearchId;
   buildSearchUrl: (query: SearchQuery) => string;
   /** Defaults to `buildSearchUrl`. Use when verify and per-listing links should differ. */
   buildListingUrl?: (query: SearchQuery) => string;
@@ -28,9 +32,10 @@ export function createMockAdapter(config: {
 
   return {
     id: config.id,
+    searchId: config.searchId,
     label: config.label,
     dataSource: "mock",
-    listingKind: "sold",
+    listingKind: config.listingKind ?? "sold",
     buildSearchUrl: config.buildSearchUrl,
     async search(query: SearchQuery, signal: AbortSignal): Promise<SoldListing[]> {
       await sleep(mockLatency(config.id, query, config.profile), signal);
@@ -48,7 +53,7 @@ export function createMockAdapter(config: {
 
 /** Builds a query string from the parts of a search a marketplace can filter on. */
 export function keywordString(query: SearchQuery): string {
-  return [query.brand, query.keywords, query.size]
+  return [query.brand, query.keywords]
     .filter((part): part is string => Boolean(part))
     .join(" ");
 }

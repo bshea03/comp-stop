@@ -3,12 +3,18 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { dedupeListingsById } from "@/lib/dedupe-listings";
+import { filterListingsByQueryBrand } from "@/lib/listings/brand-match";
+import { filterListingsByQueryCondition } from "@/lib/listings/condition-match";
 import { runDepopMarketplace } from "@/lib/marketplaces/depop/run-depop";
-import { MARKETPLACE_ADAPTERS } from "@/lib/marketplaces/registry";
+import { runMercariMarketplace } from "@/lib/marketplaces/mercari/run-mercari";
+import {
+  EXTRA_MARKETPLACE_ADAPTERS,
+  MARKETPLACE_ADAPTERS,
+} from "@/lib/marketplaces/registry";
 import type {
   MarketplaceAdapter,
-  MarketplaceId,
   MarketplaceResult,
+  PanelSearchId,
   SearchQuery,
   SoldListing,
 } from "@/lib/marketplaces/types";
@@ -19,10 +25,20 @@ import {
 import { searchQuerySchema, soldListingSchema } from "@/lib/schema";
 import { computePriceStats } from "@/lib/stats";
 
+function adapterSearchId(adapter: MarketplaceAdapter): PanelSearchId {
+  return adapter.searchId ?? adapter.id;
+}
+
+const ALL_REGISTRY_ADAPTERS: readonly MarketplaceAdapter[] = [
+  ...MARKETPLACE_ADAPTERS,
+  ...EXTRA_MARKETPLACE_ADAPTERS,
+];
+
 function adapterTimeoutMs(adapter: MarketplaceAdapter): number {
   if (process.env.USE_MOCK_MARKETPLACES === "1") return 10_000;
   // SoldComps fetches live eBay HTML; median latency is several seconds.
-  if (adapter.id === "ebay" && adapter.listingKind === "sold") return 28_000;
+  if (adapter.id === "ebay") return 28_000;
+  if (adapter.id === "grailed") return 20_000;
   return 15_000;
 }
 
@@ -41,7 +57,7 @@ async function invokeAdapterSearch(
   const revalidate = searchCacheRevalidateSeconds();
   if (revalidate === false) return run();
 
-  const cacheKey = `${adapter.id}:${searchQueryCacheKey(query)}`;
+  const cacheKey = `${adapterSearchId(adapter)}:${searchQueryCacheKey(query)}`;
   return unstable_cache(run, ["marketplace-listings", cacheKey], {
     revalidate,
   })();
@@ -78,7 +94,11 @@ async function runAdapter(
 
   try {
     const raw = await invokeAdapterSearch(adapter, query);
-    const listings = dedupeListingsById(adapterResultSchema.parse(raw));
+    const parsed = dedupeListingsById(adapterResultSchema.parse(raw));
+    const listings = filterListingsByQueryCondition(
+      filterListingsByQueryBrand(parsed, query.brand),
+      query.condition,
+    );
 
     return {
       ...base,
@@ -104,14 +124,15 @@ async function runAdapter(
  * though they stream into separate Suspense boundaries.
  */
 const startSearch = cache(
-  (key: string): Map<MarketplaceId, Promise<MarketplaceResult>> => {
+  (key: string): Map<PanelSearchId, Promise<MarketplaceResult>> => {
     const parsed = searchQuerySchema.parse(JSON.parse(key));
-    const pending = new Map<MarketplaceId, Promise<MarketplaceResult>>(
-      MARKETPLACE_ADAPTERS.map((adapter) => [
-        adapter.id,
+    const pending = new Map<PanelSearchId, Promise<MarketplaceResult>>(
+      ALL_REGISTRY_ADAPTERS.map((adapter) => [
+        adapterSearchId(adapter),
         runAdapter(adapter, parsed),
       ]),
     );
+    pending.set("mercari", runMercariMarketplace(parsed));
     pending.set("depop", runDepopMarketplace(parsed));
     return pending;
   },
@@ -119,12 +140,12 @@ const startSearch = cache(
 
 /** Result for a single marketplace, for per-card streaming. */
 export function searchMarketplace(
-  marketplace: MarketplaceId,
+  searchId: PanelSearchId,
   query: SearchQuery,
 ): Promise<MarketplaceResult> {
-  const pending = startSearch(searchQueryCacheKey(query)).get(marketplace);
+  const pending = startSearch(searchQueryCacheKey(query)).get(searchId);
   if (!pending) {
-    throw new Error(`No adapter registered for "${marketplace}".`);
+    throw new Error(`No adapter registered for "${searchId}".`);
   }
   return pending;
 }
@@ -136,10 +157,9 @@ export function searchAllMarketplaces(
   return Promise.all([...startSearch(searchQueryCacheKey(query)).values()]);
 }
 
-export const REGISTERED_MARKETPLACES: readonly {
-  id: MarketplaceId;
-  label: string;
-}[] = [
-  ...MARKETPLACE_ADAPTERS.map(({ id, label }) => ({ id, label })),
-  { id: "depop", label: "Depop" },
-];
+export {
+  ALL_MARKETPLACE_PANELS,
+  ALL_MARKETPLACE_PANELS as REGISTERED_MARKETPLACES,
+  DATA_MARKETPLACE_PANELS,
+  LINK_OUT_MARKETPLACE_PANELS,
+} from "@/lib/marketplaces/marketplace-panels";

@@ -1,14 +1,6 @@
+import { EBAY_CONDITION_IDS } from "@/lib/marketplaces/ebay/condition-ids";
 import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
 import type { SearchQuery } from "@/lib/marketplaces/types";
-
-/** Maps our condition filter to eBay's LH_ItemCondition values. */
-const EBAY_CONDITION: Record<string, string> = {
-  "New with tags": "1000",
-  "New without tags": "1500",
-  Excellent: "3000",
-  Good: "3000",
-  Fair: "7000",
-};
 
 function searchKeywords(query: SearchQuery): string {
   const combined = keywordString(query) || query.keywords.trim();
@@ -22,7 +14,7 @@ function baseParams(query: SearchQuery): URLSearchParams {
   params.set("rt", "nc");
 
   if (query.condition) {
-    const conditionId = EBAY_CONDITION[query.condition];
+    const conditionId = EBAY_CONDITION_IDS[query.condition];
     if (conditionId) params.set("LH_ItemCondition", conditionId);
   }
 

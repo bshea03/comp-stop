@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.cloudfront.net" },
       { protocol: "https", hostname: "**.vinted.net" },
       { protocol: "https", hostname: "**.depop.com" },
+      { protocol: "https", hostname: "media-assets.grailed.com" },
+      { protocol: "https", hostname: "**.grailed.com" },
     ],
   },
   turbopack: {

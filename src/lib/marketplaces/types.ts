@@ -1,6 +1,16 @@
-export const MARKETPLACE_IDS = ["ebay", "poshmark", "vinted", "depop"] as const;
+export const MARKETPLACE_IDS = [
+  "ebay",
+  "poshmark",
+  "mercari",
+  "grailed",
+  "vinted",
+  "depop",
+] as const;
 
 export type MarketplaceId = (typeof MARKETPLACE_IDS)[number];
+
+/** Unique key for search/cache when one marketplace has sold + active panels. */
+export type PanelSearchId = MarketplaceId | "ebay-active" | "poshmark-active";
 
 /** Whether a result came from the marketplace itself or from the mock generator. */
 export type DataSource = "live" | "mock";
@@ -8,7 +18,6 @@ export type DataSource = "live" | "mock";
 export type SearchQuery = {
   keywords: string;
   brand?: string;
-  size?: string;
   condition?: string;
   daysBack: number;
   limit: number;
@@ -74,6 +83,8 @@ export type MarketplaceResult = {
 
 export interface MarketplaceAdapter {
   id: MarketplaceId;
+  /** Defaults to `id`. Use `ebay-active` / `poshmark-active` for second panels. */
+  searchId?: PanelSearchId;
   label: string;
   dataSource: DataSource;
   listingKind: ListingKind;

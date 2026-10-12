@@ -1,15 +1,9 @@
 import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
 import { filterListingsByDaysBack } from "@/lib/marketplaces/live/filter-by-days";
 import { marketplaceFetch } from "@/lib/marketplaces/live/http";
+import { POSHMARK_CONDITION_FILTER } from "@/lib/marketplaces/poshmark/condition-filter";
+import { poshmarkConditionLabel } from "@/lib/marketplaces/poshmark/condition-labels";
 import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
-
-const POSHMARK_CONDITION: Record<string, string> = {
-  nwt: "New with tags",
-  nwot: "New without tags",
-  uln: "Used like new",
-  ret: "Retail",
-  wlsl: "Wholesale",
-};
 
 type PoshmarkPost = {
   id: string;
@@ -48,9 +42,7 @@ function mapPost(post: PoshmarkPost): SoldListing | null {
     title: post.title,
     brand: post.brand,
     size,
-    condition: post.condition
-      ? POSHMARK_CONDITION[post.condition] ?? post.condition
-      : undefined,
+    condition: poshmarkConditionLabel(post.condition),
     priceCents,
     currency: "USD",
     soldAt,
@@ -63,11 +55,17 @@ export async function searchPoshmarkSold(
   query: SearchQuery,
   signal: AbortSignal,
 ): Promise<SoldListing[]> {
+  const conditionFilter =
+    query.condition &&
+    (POSHMARK_CONDITION_FILTER as Record<string, string[] | undefined>)[
+      query.condition
+    ];
+
   const request = {
     filters: {
       department: "All",
       inventory_status: ["sold_out"],
-      ...(query.size ? { size: [query.size] } : {}),
+      ...(conditionFilter ? { condition: conditionFilter } : {}),
     },
     query: keywordString(query),
     sort_by: "added_desc",

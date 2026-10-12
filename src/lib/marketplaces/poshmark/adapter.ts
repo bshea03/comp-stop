@@ -1,4 +1,5 @@
 import { resolveAdapter } from "@/lib/marketplaces/live/resolve-adapter";
+import { buildPoshmarkSoldSearchUrl } from "@/lib/marketplaces/poshmark/build-search-url";
 import { poshmarkMockAdapter } from "@/lib/marketplaces/poshmark/mock-adapter";
 import { searchPoshmarkSold } from "@/lib/marketplaces/poshmark/live-search";
 import type { MarketplaceAdapter } from "@/lib/marketplaces/types";
@@ -13,7 +14,7 @@ const poshmarkLiveAdapter: MarketplaceAdapter = {
   label: "Poshmark",
   dataSource: "live",
   listingKind: "sold",
-  buildSearchUrl: poshmarkMockAdapter.buildSearchUrl,
+  buildSearchUrl: buildPoshmarkSoldSearchUrl,
   search: searchPoshmarkSold,
 };
 

@@ -41,13 +41,18 @@ sample data for offline work.
 | ----------- | ------------------- | ------------ |
 | Poshmark    | `GET /vm-rest/posts` with `inventory_status[]=sold_out` | **Sold** comps with photos and sold dates |
 | eBay        | [SoldComps API](https://sold-comps.com/) (`SOLD_COMPS_API_KEY`) | **Sold** comps (final prices, ~90-day window) |
+| Grailed     | Algolia `Listing_sold_production` | **Sold** comps (streetwear / designer focus) |
 | Vinted      | Catalog search HTML | **Active** listings (Vinted removes sold items) |
-| Depop       | Link-out to depop.com (default) or Bright Data if approved | **Active** listings in-app only with a business Bright Data + Depop KYC; otherwise **Search on site** |
+| eBay (active) | eBay **Buy Browse API** (`EBAY_CLIENT_ID` + `EBAY_CLIENT_SECRET`) | **Active** asking prices |
+| Poshmark (active) | `GET /vm-rest/posts` with `inventory_status[]=available` | **Active** listings |
+| Mercari     | **Sold comps** section, link-out (`MERCARI_LINK_OUT=1`) | **Sold** via link-out (Cloudflare blocks server fetch) |
+| Depop       | **Active listings** section, link-out (`DEPO_LINK_OUT=1`) | **Active** via link-out |
 
 Cards label **Live sold**, **Active listings**, or **Sample data**. A banner
-calls out mock adapters and any site that is live but not sold comps.
+appears only when mock adapters are in use.
 
-Copy `.env.example` to `.env.local` and set **`SOLD_COMPS_API_KEY`** (eBay). For
+Copy `.env.example` to `.env.local` and set **`SOLD_COMPS_API_KEY`** (eBay sold)
+and **`EBAY_CLIENT_ID`** / **`EBAY_CLIENT_SECRET`** (eBay active Browse API). For
 **personal / hobby use**, keep **`DEPO_LINK_OUT=1`** (default in `.env.example`) so
 Depop opens on depop.com with the same query — no Bright Data account needed. In-app
 Depop grids require [Bright Data](https://brightdata.com/) Web Unlocker plus business
@@ -129,14 +134,15 @@ Adding a fifth marketplace is the same work plus one entry in
    | Variable | Required | Notes |
    | -------- | -------- | ----- |
    | `SOLD_COMPS_API_KEY` | Yes (for live eBay) | From [sold-comps.com](https://sold-comps.com/) |
-   | `DEPO_LINK_OUT` | Depop | `1` (default) = link-out for personal use; `0` only if Bright Data + Depop KYC approved |
+   | `MERCARI_LINK_OUT` | Mercari | `1` (default) = Search on site; `0` tries live fetch (usually falls back) |
+   | `DEPO_LINK_OUT` | Depop | `1` (default) = Search on site; `0` only if Bright Data + Depop KYC approved |
    | `BRIGHTDATA_API_KEY` | Depop in-app (optional) | Business Bright Data account with Depop KYC |
    | `BRIGHTDATA_UNLOCKER_ZONE` | Depop in-app (optional) | Web Unlocker zone name |
    | `SEARCH_CACHE_REVALIDATE_SECONDS` | No | Default 6h; `0` disables cache |
    | `USE_MOCK_MARKETPLACES` | No | Set to `1` for demo/staging without live scrapes |
-4. Deploy. Server-side fetches (Poshmark, Vinted, SoldComps) run on Vercel’s Node
-   runtime. **Depop** uses link-out (`DEPO_LINK_OUT=1`) unless you run in-app Depop
-   with an approved Bright Data + KYC setup.
+4. Deploy. Server-side fetches (Poshmark, Grailed, Vinted, SoldComps) run on
+   Vercel’s Node runtime. **Mercari** and **Depop** use the **Search on site**
+   section (`MERCARI_LINK_OUT=1`, `DEPO_LINK_OUT=1` by default).
 
 **Quota:** SoldComps counts each uncached search. The built-in cache reduces
 repeat lookups for the same query parameters within the revalidate window.

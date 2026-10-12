@@ -13,7 +13,6 @@ export function searchQueryCacheKey(query: SearchQuery): string {
   return JSON.stringify({
     keywords: query.keywords,
     brand: query.brand,
-    size: query.size,
     condition: query.condition,
     daysBack: query.daysBack,
     limit: query.limit,

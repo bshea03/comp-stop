@@ -56,7 +56,6 @@ export function SearchForm() {
   const current = {
     keywords: searchParams.get(SEARCH_PARAM_KEYS.keywords) ?? "",
     brand: searchParams.get(SEARCH_PARAM_KEYS.brand) ?? "",
-    size: searchParams.get(SEARCH_PARAM_KEYS.size) ?? "",
     condition: searchParams.get(SEARCH_PARAM_KEYS.condition) ?? "",
     daysBack: searchParams.get(SEARCH_PARAM_KEYS.daysBack) ?? String(DEFAULT_DAYS_BACK),
   };
@@ -65,7 +64,6 @@ export function SearchForm() {
     ? buildSearchParams({
         keywords: current.keywords,
         brand: current.brand || undefined,
-        size: current.size || undefined,
         condition: (current.condition || undefined) as
           | (typeof CONDITIONS)[number]
           | undefined,
@@ -88,7 +86,6 @@ export function SearchForm() {
       const nextSearch = buildSearchParams({
         keywords,
         brand: read(SEARCH_PARAM_KEYS.brand),
-        size: read(SEARCH_PARAM_KEYS.size),
         condition: read(SEARCH_PARAM_KEYS.condition) as
           | (typeof CONDITIONS)[number]
           | undefined,
@@ -127,7 +124,7 @@ export function SearchForm() {
         <Field
           label="Garment, tag, or keywords"
           htmlFor="field-keywords"
-          className="lg:col-span-4"
+          className="lg:col-span-5"
         >
           <input
             id="field-keywords"
@@ -146,17 +143,6 @@ export function SearchForm() {
             name={SEARCH_PARAM_KEYS.brand}
             defaultValue={current.brand}
             placeholder="Carhartt"
-            autoComplete="off"
-            className={FIELD_CLASSES}
-          />
-        </Field>
-
-        <Field label="Size" htmlFor="field-size" className="lg:col-span-1">
-          <input
-            id="field-size"
-            name={SEARCH_PARAM_KEYS.size}
-            defaultValue={current.size}
-            placeholder="M"
             autoComplete="off"
             className={FIELD_CLASSES}
           />

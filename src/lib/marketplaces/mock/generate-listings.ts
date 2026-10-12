@@ -110,7 +110,6 @@ function seedFor(marketplace: MarketplaceId, query: SearchQuery): string {
     marketplace,
     query.keywords.trim().toLowerCase(),
     query.brand?.trim().toLowerCase() ?? "",
-    query.size?.trim().toLowerCase() ?? "",
     query.condition ?? "",
     query.daysBack,
   ].join("|");
@@ -139,7 +138,7 @@ export function generateMockListings(options: {
   const listings: SoldListing[] = [];
   for (let i = 0; i < count; i += 1) {
     const condition = query.condition ?? rng.pick(CONDITION_POOL);
-    const size = query.size ?? rng.pick(SIZES);
+    const size = rng.pick(SIZES);
     // Clamping the normal sample keeps the long tail of a lognormal price
     // distribution without producing comps that are absurd for the garment.
     const z = Math.max(-2.5, Math.min(2.5, rng.normal()));
