@@ -3,8 +3,7 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { dedupeListingsById } from "@/lib/dedupe-listings";
-import { filterListingsByQueryBrand } from "@/lib/listings/brand-match";
-import { filterListingsByQueryCondition } from "@/lib/listings/condition-match";
+import { applyQueryListingFilters } from "@/lib/listings/apply-query-listing-filters";
 import { runDepopMarketplace } from "@/lib/marketplaces/depop/run-depop";
 import { runMercariMarketplace } from "@/lib/marketplaces/mercari/run-mercari";
 import {
@@ -39,6 +38,7 @@ function adapterTimeoutMs(adapter: MarketplaceAdapter): number {
   // SoldComps fetches live eBay HTML; median latency is several seconds.
   if (adapter.id === "ebay") return 28_000;
   if (adapter.id === "grailed") return 20_000;
+  if (adapter.id === "poshmark") return 25_000;
   return 15_000;
 }
 
@@ -95,10 +95,7 @@ async function runAdapter(
   try {
     const raw = await invokeAdapterSearch(adapter, query);
     const parsed = dedupeListingsById(adapterResultSchema.parse(raw));
-    const listings = filterListingsByQueryCondition(
-      filterListingsByQueryBrand(parsed, query.brand),
-      query.condition,
-    );
+    const listings = applyQueryListingFilters(parsed, query);
 
     return {
       ...base,

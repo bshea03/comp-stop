@@ -1,34 +1,15 @@
-import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
-import { filterListingsByDaysBack } from "@/lib/marketplaces/live/filter-by-days";
-import { marketplaceFetch } from "@/lib/marketplaces/live/http";
-import { POSHMARK_CONDITION_FILTER } from "@/lib/marketplaces/poshmark/condition-filter";
 import { poshmarkConditionLabel } from "@/lib/marketplaces/poshmark/condition-labels";
+import {
+  searchPoshmarkPostsPaginated,
+  type PoshmarkPost,
+} from "@/lib/marketplaces/poshmark/posts-api";
 import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
-
-type PoshmarkPost = {
-  id: string;
-  title: string;
-  brand?: string;
-  condition?: string;
-  price: number;
-  cover_shot?: { url_small?: string; url?: string };
-  inventory?: {
-    status_changed_at?: string;
-    size_quantities?: Array<{
-      size_obj?: { display?: string };
-    }>;
-  };
-};
-
-type PoshmarkResponse = {
-  data?: PoshmarkPost[];
-};
 
 function poshmarkListingUrl(id: string): string {
   return `https://poshmark.com/listing/${id}`;
 }
 
-function mapPost(post: PoshmarkPost): SoldListing | null {
+function mapSoldPost(post: PoshmarkPost): SoldListing | null {
   const soldAtRaw = post.inventory?.status_changed_at;
   if (!soldAtRaw) return null;
 
@@ -55,36 +36,10 @@ export async function searchPoshmarkSold(
   query: SearchQuery,
   signal: AbortSignal,
 ): Promise<SoldListing[]> {
-  const conditionFilter =
-    query.condition &&
-    (POSHMARK_CONDITION_FILTER as Record<string, string[] | undefined>)[
-      query.condition
-    ];
-
-  const request = {
-    filters: {
-      department: "All",
-      inventory_status: ["sold_out"],
-      ...(conditionFilter ? { condition: conditionFilter } : {}),
-    },
-    query: keywordString(query),
-    sort_by: "added_desc",
-  };
-
-  const url = `https://poshmark.com/vm-rest/posts?request=${encodeURIComponent(JSON.stringify(request))}&summarize=true&count=${Math.min(query.limit, 200)}`;
-
-  const response = await marketplaceFetch(url, signal, {
-    headers: { Accept: "application/json" },
+  return searchPoshmarkPostsPaginated(query, signal, {
+    inventoryStatus: ["sold_out"],
+    sortBy: "relevance",
+    mapPost: mapSoldPost,
+    restrictToDaysBack: true,
   });
-
-  if (!response.ok) {
-    throw new Error(`Poshmark returned HTTP ${response.status}.`);
-  }
-
-  const body = (await response.json()) as PoshmarkResponse;
-  const mapped = (body.data ?? [])
-    .map(mapPost)
-    .filter((listing): listing is SoldListing => listing !== null);
-
-  return filterListingsByDaysBack(mapped, query.daysBack).slice(0, query.limit);
 }
