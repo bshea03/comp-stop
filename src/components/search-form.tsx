@@ -5,6 +5,7 @@ import { useSearchState } from "@/components/search-state";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
+import { preserveResultsViewOnParams } from "@/lib/results-view";
 import {
   buildSearchParams,
   CONDITIONS,
@@ -83,21 +84,26 @@ export function SearchForm() {
       const keywords = read(SEARCH_PARAM_KEYS.keywords);
       if (!keywords) return;
 
-      const nextSearch = buildSearchParams({
-        keywords,
-        brand: read(SEARCH_PARAM_KEYS.brand),
-        condition: read(SEARCH_PARAM_KEYS.condition) as
-          | (typeof CONDITIONS)[number]
-          | undefined,
-        daysBack: Number(data.get(SEARCH_PARAM_KEYS.daysBack)),
-      });
+      const params = new URLSearchParams(
+        buildSearchParams({
+          keywords,
+          brand: read(SEARCH_PARAM_KEYS.brand),
+          condition: read(SEARCH_PARAM_KEYS.condition) as
+            | (typeof CONDITIONS)[number]
+            | undefined,
+          daysBack: Number(data.get(SEARCH_PARAM_KEYS.daysBack)),
+        }),
+      );
+      preserveResultsViewOnParams(params, searchParams);
+
+      const nextSearch = params.toString();
 
       beginSearch();
       startTransition(() => {
         if (nextSearch === currentSearchKey && currentSearchKey.length > 0) {
           router.refresh();
         } else {
-          router.push(`/?${nextSearch}`);
+          router.push(nextSearch ? `/?${nextSearch}` : "/");
         }
       });
     },
@@ -106,6 +112,7 @@ export function SearchForm() {
       currentSearchKey,
       isSearching,
       router,
+      searchParams,
       startTransition,
     ],
   );
@@ -191,7 +198,7 @@ export function SearchForm() {
           aria-busy={isSearching}
           className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isSearching ? "Searching..." : "Search sold comps"}
+          {isSearching ? "Searching..." : "Search"}
         </button>
         {current.keywords ? (
           <Link

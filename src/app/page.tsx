@@ -8,13 +8,13 @@ import {
   MarketplaceResultsSection,
   MarketplaceResultsSectionSkeleton,
 } from "@/components/marketplace-results-section";
+import { ResultsViewTabs } from "@/components/results-view-tabs";
 import { ResultsLoadingShell } from "@/components/results-loading-shell";
 import { SearchStateProvider } from "@/components/search-state";
 import { SearchForm, SearchFormSkeleton } from "@/components/search-form";
 import { buildSearchParams } from "@/lib/schema";
 import type { SearchQuery } from "@/lib/marketplaces/types";
 import { parseSearchParams, TIME_WINDOWS } from "@/lib/schema";
-import { ALL_MARKETPLACE_PANELS } from "@/lib/search-service";
 
 function QueryRecap({ query }: { query: SearchQuery }) {
   const window = TIME_WINDOWS.find((option) => option.days === query.daysBack);
@@ -34,35 +34,36 @@ function QueryRecap({ query }: { query: SearchQuery }) {
 }
 
 async function Results({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
-  const query = parseSearchParams(await searchParams);
+  const rawParams = await searchParams;
+  const query = parseSearchParams(rawParams);
   if (!query) return <EmptyState />;
 
   const searchKey = buildSearchParams(query);
-
   return (
     <ResultsLoadingShell
       showResults
-      marketplaces={ALL_MARKETPLACE_PANELS}
       recap={<QueryRecap query={query} />}
     >
       <div className="space-y-6">
-        <QueryRecap query={query} />
-
         <Suspense key={`notice-${searchKey}`}>
           <MockDataNoticeBlock query={query} />
         </Suspense>
 
-        <MarketplaceResultsSection
-          listingKind="sold"
-          query={query}
-          searchKey={searchKey}
-        />
-
-        <MarketplaceResultsSection
-          listingKind="active"
-          query={query}
-          searchKey={searchKey}
-          className="space-y-6"
+        <ResultsViewTabs
+          sold={
+            <MarketplaceResultsSection
+              listingKind="sold"
+              query={query}
+              searchKey={searchKey}
+            />
+          }
+          active={
+            <MarketplaceResultsSection
+              listingKind="active"
+              query={query}
+              searchKey={searchKey}
+            />
+          }
         />
 
         <SearchFiltersFooter query={query} />
@@ -74,12 +75,11 @@ async function Results({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
 function ResultsSkeleton() {
   return (
     <div className="space-y-6">
-      <MarketplaceResultsSectionSkeleton listingKind="sold" loading />
-      <MarketplaceResultsSectionSkeleton
-        listingKind="active"
-        loading
-        className="space-y-6"
+      <div
+        className="h-[4.25rem] animate-pulse rounded-xl bg-surface-muted sm:h-14"
+        aria-hidden
       />
+      <MarketplaceResultsSectionSkeleton listingKind="sold" loading />
     </div>
   );
 }

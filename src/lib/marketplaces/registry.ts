@@ -7,8 +7,8 @@ import { vintedAdapter } from "@/lib/marketplaces/vinted/adapter";
 import type { MarketplaceAdapter } from "@/lib/marketplaces/types";
 
 /**
- * Live/mock adapters for in-app comps. Order is the main results grid (Depop is
- * link-out only — see `run-depop.ts` and `LINK_OUT_MARKETPLACE_PANELS`).
+ * Live/mock adapters for in-app comps. UI order comes from `MARKETPLACE_CATALOG`
+ * in `marketplace-panels.ts` (Depop/Mercari use `run-depop` / `run-mercari`).
  */
 export const MARKETPLACE_ADAPTERS: readonly MarketplaceAdapter[] = [
   ebayAdapter,
