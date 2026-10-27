@@ -1,4 +1,5 @@
 import { BrandFilterNotice } from "@/components/brand-filter-notice";
+import { SizeFilterNotice } from "@/components/size-filter-notice";
 import type { SearchQuery } from "@/lib/marketplaces/types";
 
 function ConditionFilterNotice({
@@ -18,11 +19,12 @@ function ConditionFilterNotice({
 }
 
 export function SearchFiltersFooter({ query }: { query: SearchQuery }) {
-  if (!query.brand && !query.condition) return null;
+  if (!query.brand && !query.size && !query.condition) return null;
 
   return (
     <footer className="space-y-2 border-t border-border-subtle pt-6">
       {query.brand ? <BrandFilterNotice brand={query.brand} /> : null}
+      {query.size ? <SizeFilterNotice size={query.size} /> : null}
       {query.condition ? (
         <ConditionFilterNotice condition={query.condition} />
       ) : null}

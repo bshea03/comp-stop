@@ -1,6 +1,6 @@
 "use client";
 
-import { MarketplaceResultsSectionSkeleton } from "@/components/marketplace-results-section";
+import { MarketplaceResultsSectionSkeleton } from "@/components/marketplace-results-section-skeleton";
 import { ResultsViewTabs } from "@/components/results-view-tabs";
 import { useSearchState } from "@/components/search-state";
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { CircleLoader } from "@/components/circle-loader";
 import { MARKETPLACE_THEME } from "@/components/marketplace-theme";
 import {

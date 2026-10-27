@@ -17,6 +17,7 @@ import type {
   SearchQuery,
   SoldListing,
 } from "@/lib/marketplaces/types";
+import { PANEL_SEARCH_IDS } from "@/lib/marketplaces/marketplace-panels";
 import {
   searchCacheRevalidateSeconds,
   searchQueryCacheKey,
@@ -114,24 +115,30 @@ async function runAdapter(
   }
 }
 
+function runPanelSearch(
+  searchId: PanelSearchId,
+  query: SearchQuery,
+): Promise<MarketplaceResult> {
+  if (searchId === "mercari") return runMercariMarketplace(query);
+  if (searchId === "depop") return runDepopMarketplace(query);
+
+  const adapter = ALL_REGISTRY_ADAPTERS.find(
+    (entry) => adapterSearchId(entry) === searchId,
+  );
+  if (!adapter) {
+    throw new Error(`No adapter registered for "${searchId}".`);
+  }
+  return runAdapter(adapter, query);
+}
+
 /**
- * Starts every adapter at once and memoizes the in-flight promises for the
- * duration of the request. The results grid and the comparison summary read
- * the same promises, so each marketplace is only searched once per request even
- * though they stream into separate Suspense boundaries.
+ * Memoizes in-flight work per (query, panel). Only panels that are actually
+ * requested start a fetch — hidden shops never hit the network.
  */
-const startSearch = cache(
-  (key: string): Map<PanelSearchId, Promise<MarketplaceResult>> => {
-    const parsed = searchQuerySchema.parse(JSON.parse(key));
-    const pending = new Map<PanelSearchId, Promise<MarketplaceResult>>(
-      ALL_REGISTRY_ADAPTERS.map((adapter) => [
-        adapterSearchId(adapter),
-        runAdapter(adapter, parsed),
-      ]),
-    );
-    pending.set("mercari", runMercariMarketplace(parsed));
-    pending.set("depop", runDepopMarketplace(parsed));
-    return pending;
+const cachedPanelSearch = cache(
+  (queryKey: string, searchId: PanelSearchId): Promise<MarketplaceResult> => {
+    const query = searchQuerySchema.parse(JSON.parse(queryKey));
+    return runPanelSearch(searchId, query);
   },
 );
 
@@ -140,18 +147,18 @@ export function searchMarketplace(
   searchId: PanelSearchId,
   query: SearchQuery,
 ): Promise<MarketplaceResult> {
-  const pending = startSearch(searchQueryCacheKey(query)).get(searchId);
-  if (!pending) {
-    throw new Error(`No adapter registered for "${searchId}".`);
-  }
-  return pending;
+  return cachedPanelSearch(searchQueryCacheKey(query), searchId);
 }
 
-/** Results for every registered marketplace, in registry order. */
+/** Results for the given panels (defaults to every registered panel). */
 export function searchAllMarketplaces(
   query: SearchQuery,
+  searchIds: readonly PanelSearchId[] = PANEL_SEARCH_IDS,
 ): Promise<MarketplaceResult[]> {
-  return Promise.all([...startSearch(searchQueryCacheKey(query)).values()]);
+  const queryKey = searchQueryCacheKey(query);
+  return Promise.all(
+    searchIds.map((searchId) => cachedPanelSearch(queryKey, searchId)),
+  );
 }
 
 export {

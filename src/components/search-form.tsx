@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchState } from "@/components/search-state";
+import { SearchKeywordsInput } from "@/components/search-keywords-input";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
+import { BrandAutocompleteInput } from "@/components/brand-autocomplete-input";
+import { MarketplacePanelMenu } from "@/components/marketplace-panel-menu";
 import { preserveResultsViewOnParams } from "@/lib/results-view";
 import {
   buildSearchParams,
@@ -57,6 +59,7 @@ export function SearchForm() {
   const current = {
     keywords: searchParams.get(SEARCH_PARAM_KEYS.keywords) ?? "",
     brand: searchParams.get(SEARCH_PARAM_KEYS.brand) ?? "",
+    size: searchParams.get(SEARCH_PARAM_KEYS.size) ?? "",
     condition: searchParams.get(SEARCH_PARAM_KEYS.condition) ?? "",
     daysBack: searchParams.get(SEARCH_PARAM_KEYS.daysBack) ?? String(DEFAULT_DAYS_BACK),
   };
@@ -65,12 +68,20 @@ export function SearchForm() {
     ? buildSearchParams({
         keywords: current.keywords,
         brand: current.brand || undefined,
+        size: current.size || undefined,
         condition: (current.condition || undefined) as
           | (typeof CONDITIONS)[number]
           | undefined,
         daysBack: Number(current.daysBack),
       })
     : "";
+
+  const clearSearch = useCallback(() => {
+    if (isSearching) return;
+    startTransition(() => {
+      router.push("/");
+    });
+  }, [isSearching, router, startTransition]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -88,6 +99,7 @@ export function SearchForm() {
         buildSearchParams({
           keywords,
           brand: read(SEARCH_PARAM_KEYS.brand),
+          size: read(SEARCH_PARAM_KEYS.size),
           condition: read(SEARCH_PARAM_KEYS.condition) as
             | (typeof CONDITIONS)[number]
             | undefined,
@@ -131,25 +143,34 @@ export function SearchForm() {
         <Field
           label="Garment, tag, or keywords"
           htmlFor="field-keywords"
-          className="lg:col-span-5"
+          className="lg:col-span-4"
         >
-          <input
+          <SearchKeywordsInput
             id="field-keywords"
             name={SEARCH_PARAM_KEYS.keywords}
             defaultValue={current.keywords}
             placeholder="wool bomber jacket"
-            autoComplete="off"
             required
             className={FIELD_CLASSES}
           />
         </Field>
 
         <Field label="Brand" htmlFor="field-brand" className="lg:col-span-3">
-          <input
+          <BrandAutocompleteInput
             id="field-brand"
             name={SEARCH_PARAM_KEYS.brand}
             defaultValue={current.brand}
             placeholder="Carhartt"
+            className={FIELD_CLASSES}
+          />
+        </Field>
+
+        <Field label="Size" htmlFor="field-size" className="lg:col-span-1">
+          <input
+            id="field-size"
+            name={SEARCH_PARAM_KEYS.size}
+            defaultValue={current.size}
+            placeholder="M"
             autoComplete="off"
             className={FIELD_CLASSES}
           />
@@ -191,7 +212,7 @@ export function SearchForm() {
         </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
           type="submit"
           disabled={isSearching}
@@ -201,13 +222,21 @@ export function SearchForm() {
           {isSearching ? "Searching..." : "Search"}
         </button>
         {current.keywords ? (
-          <Link
-            href="/"
-            className="text-sm font-medium text-muted transition hover:text-foreground"
+          <button
+            type="button"
+            onClick={clearSearch}
+            disabled={isSearching}
+            className={[
+              "w-full rounded-lg border border-border-subtle bg-surface px-4 py-2.5 text-sm font-semibold",
+              "text-foreground shadow-sm transition hover:bg-surface-muted/60",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+              "disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto",
+            ].join(" ")}
           >
-            Clear
-          </Link>
+            Clear search
+          </button>
         ) : null}
+        <MarketplacePanelMenu className="w-full sm:ml-auto sm:w-auto" />
       </div>
     </form>
   );

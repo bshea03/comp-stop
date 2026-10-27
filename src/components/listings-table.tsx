@@ -1,39 +1,123 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { ListingThumbnail } from "@/components/listing-thumbnail";
+import { useResultsView } from "@/components/results-view-context";
 import type { MarketplaceResult, SoldListing } from "@/lib/marketplaces/types";
 import { formatCents, formatCount, formatDate } from "@/lib/format";
 
-function ListingRow({ listing }: { listing: SoldListing }) {
+/** Sold date gets its own column once the panel can fit it beside the price. */
+const WIDE_LISTING_COLUMNS = "@min-[22rem]:block";
+
+function DesktopListingRow({ listing }: { listing: SoldListing }) {
   const meta = [listing.size, listing.condition].filter(Boolean).join(" \u00b7 ");
 
   return (
-    <tr className="border-t border-border-subtle align-top">
-      <td className="py-2 pr-3">
+    <div
+      role="row"
+      className="col-span-full grid grid-cols-subgrid items-start border-t border-border-subtle py-2"
+    >
+      <div role="cell">
         <ListingThumbnail listing={listing} />
-      </td>
-      <td className="py-2 pr-3">
+      </div>
+      <div role="cell" className="min-w-0">
         <a
           href={listing.url}
           target="_blank"
           rel="noreferrer noopener"
-          className="font-medium text-foreground underline decoration-border-subtle decoration-1 underline-offset-2 transition hover:decoration-accent"
+          className="break-words font-medium text-foreground underline decoration-border-subtle decoration-1 underline-offset-2 transition hover:decoration-accent"
         >
           {listing.title}
         </a>
         {meta ? (
           <span className="mt-0.5 block text-xs text-muted">{meta}</span>
         ) : null}
-      </td>
-      <td className="py-2 pr-3 whitespace-nowrap text-muted tabular">
+        <span className="mt-0.5 block text-xs text-muted tabular @min-[22rem]:hidden">
+          {formatDate(listing.soldAt)}
+        </span>
+      </div>
+      <div
+        role="cell"
+        className={`hidden whitespace-nowrap text-muted tabular ${WIDE_LISTING_COLUMNS}`}
+      >
         {formatDate(listing.soldAt)}
-      </td>
-      <td className="py-2 text-right font-semibold whitespace-nowrap tabular">
+      </div>
+      <div
+        role="cell"
+        className="text-right font-semibold whitespace-nowrap tabular"
+      >
         {formatCents(listing.priceCents, listing.currency)}
-      </td>
-    </tr>
+      </div>
+    </div>
+  );
+}
+
+function MobileListingCard({ listing }: { listing: SoldListing }) {
+  const meta = [listing.size, listing.condition].filter(Boolean).join(" · ");
+
+  return (
+    <li className="flex gap-3 py-4">
+      <ListingThumbnail listing={listing} />
+      <div className="min-w-0 flex-1">
+        <a
+          href={listing.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="block font-medium text-foreground underline decoration-border-subtle decoration-1 underline-offset-2 transition hover:decoration-accent"
+        >
+          {listing.title}
+        </a>
+        {meta ? <p className="mt-0.5 text-xs text-muted">{meta}</p> : null}
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="font-semibold text-foreground tabular">
+            {formatCents(listing.priceCents, listing.currency)}
+          </span>
+          <span className="text-muted tabular">{formatDate(listing.soldAt)}</span>
+        </p>
+      </div>
+    </li>
   );
 }
 
 const PREVIEW_COUNT = 5;
+const COMPS_PAGE_SIZE = 10;
+
+function CompsLoadMore({
+  visibleCount,
+  total,
+  onLoadMore,
+}: {
+  visibleCount: number;
+  total: number;
+  onLoadMore: () => void;
+}) {
+  if (visibleCount >= total) return null;
+
+  const remaining = total - visibleCount;
+  const nextCount = Math.min(COMPS_PAGE_SIZE, remaining);
+
+  return (
+    <div className="mt-3 border-t border-border-subtle pt-3">
+      <p className="mb-2 text-center text-xs text-muted">
+        {`Showing ${visibleCount} of ${formatCount(total, "comp")}. Averages above use every comp.`}
+      </p>
+      <button
+        type="button"
+        onClick={onLoadMore}
+        className={[
+          "w-full rounded-lg border border-border-subtle bg-surface-muted/50 px-3 py-2.5",
+          "text-sm font-medium text-foreground transition hover:bg-surface-muted",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30",
+        ].join(" ")}
+      >
+        {nextCount === 1
+          ? "Load 1 more comp"
+          : `Load ${nextCount} more comps`}
+      </button>
+    </div>
+  );
+}
 
 function listingRowKey(listing: SoldListing, index: number): string {
   return `${listing.marketplace}-${listing.id}-${index}`;
@@ -60,16 +144,56 @@ function PhotoStrip({ listings }: { listings: SoldListing[] }) {
 }
 
 export function ListingsTable({ result }: { result: MarketplaceResult }) {
+  const activeView = useResultsView();
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const panelView = result.listingKind;
+  const [visibleCount, setVisibleCount] = useState(COMPS_PAGE_SIZE);
+
+  const resetVisibleCount = useCallback(() => {
+    setVisibleCount(COMPS_PAGE_SIZE);
+  }, []);
+
+  useEffect(() => {
+    if (activeView !== panelView) {
+      detailsRef.current?.removeAttribute("open");
+      resetVisibleCount();
+    }
+  }, [activeView, panelView, resetVisibleCount]);
+
+  useEffect(() => {
+    resetVisibleCount();
+  }, [result.marketplace, result.listings.length, resetVisibleCount]);
+
+  useEffect(() => {
+    const node = detailsRef.current;
+    if (!node) return;
+
+    function onToggle() {
+      if (!node?.open) resetVisibleCount();
+    }
+
+    node.addEventListener("toggle", onToggle);
+    return () => node.removeEventListener("toggle", onToggle);
+  }, [resetVisibleCount]);
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((count) =>
+      Math.min(count + COMPS_PAGE_SIZE, result.listings.length),
+    );
+  }, [result.listings.length]);
+
   if (result.listings.length === 0) return null;
 
+  const visibleListings = result.listings.slice(0, visibleCount);
+
   return (
-    <div className="mt-4 border-t border-border-subtle pt-3">
+    <div className="mt-4 min-w-0 border-t border-border-subtle pt-3">
       <p className="mb-2 text-xs text-muted">
         Photos help confirm the sold item matches what you searched for.
       </p>
       <PhotoStrip listings={result.listings} />
 
-      <details className="group">
+      <details ref={detailsRef} className="group min-w-0">
         <summary className="cursor-pointer list-none text-sm font-medium text-muted transition hover:text-foreground">
           <span className="inline-flex items-center gap-1.5">
             <span className="transition group-open:rotate-90" aria-hidden>
@@ -79,34 +203,59 @@ export function ListingsTable({ result }: { result: MarketplaceResult }) {
           </span>
         </summary>
 
-      <div className="mt-3 max-h-80 overflow-x-auto overflow-y-auto pr-1 sm:pr-3">
-        <table className="min-w-[28rem] w-full text-left text-sm">
-          <thead className="text-xs font-medium uppercase tracking-wide text-muted">
-            <tr>
-              <th scope="col" className="pb-2 pr-3 font-medium">
+        <ul
+          className={[
+            "mt-3 max-h-[min(70dvh,28rem)] divide-y divide-border-subtle overflow-y-auto overscroll-y-contain",
+            "pr-0.5 sm:hidden",
+          ].join(" ")}
+        >
+          {visibleListings.map((listing, index) => (
+            <MobileListingCard
+              key={listingRowKey(listing, index)}
+              listing={listing}
+            />
+          ))}
+        </ul>
+
+        <div className="@container mt-3 hidden max-h-80 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain pr-3 sm:block">
+          <div
+            role="table"
+            className="grid min-w-0 grid-cols-[4rem_minmax(0,1fr)_auto] gap-x-3 text-left text-sm @min-[22rem]:grid-cols-[4rem_minmax(0,1fr)_auto_auto]"
+          >
+            <div
+              role="row"
+              className="col-span-full grid grid-cols-subgrid text-xs font-medium uppercase tracking-wide text-muted"
+            >
+              <div role="columnheader" className="pb-2">
                 <span className="sr-only">Photo</span>
-              </th>
-              <th scope="col" className="pb-2 pr-3 font-medium">
+              </div>
+              <div role="columnheader" className="pb-2">
                 Item
-              </th>
-              <th scope="col" className="pb-2 pr-3 font-medium">
+              </div>
+              <div
+                role="columnheader"
+                className={`hidden pb-2 ${WIDE_LISTING_COLUMNS}`}
+              >
                 Sold
-              </th>
-              <th scope="col" className="pb-2 text-right font-medium">
+              </div>
+              <div role="columnheader" className="pb-2 text-right">
                 Price
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.listings.map((listing, index) => (
-              <ListingRow
+              </div>
+            </div>
+            {visibleListings.map((listing, index) => (
+              <DesktopListingRow
                 key={listingRowKey(listing, index)}
                 listing={listing}
               />
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+
+        <CompsLoadMore
+          visibleCount={visibleCount}
+          total={result.listings.length}
+          onLoadMore={loadMore}
+        />
       </details>
     </div>
   );

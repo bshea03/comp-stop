@@ -31,6 +31,7 @@ type PoshmarkPostsRequest = {
     department: string;
     inventory_status: string[];
     condition?: string[];
+    size?: string[];
   };
   query: string;
   sort_by: string;
@@ -62,6 +63,7 @@ function buildPostsRequest(
       department: "All",
       inventory_status: inventoryStatus,
       ...(conditionFilter ? { condition: conditionFilter } : {}),
+      ...(query.size ? { size: [query.size] } : {}),
     },
     query: keywordString(query),
     sort_by: sortBy,

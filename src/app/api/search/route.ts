@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 
+import { enabledPanelSearchIds } from "@/lib/marketplace-visibility";
+import { getMarketplaceVisibilityFromRequest } from "@/lib/marketplace-visibility-server";
 import { parseSearchParams, SEARCH_PARAM_KEYS } from "@/lib/schema";
 import { searchAllMarketplaces } from "@/lib/search-service";
 import { computeBlendedStats } from "@/lib/stats";
@@ -16,7 +18,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const results = await searchAllMarketplaces(query);
+  const visibility = await getMarketplaceVisibilityFromRequest();
+  const results = await searchAllMarketplaces(
+    query,
+    enabledPanelSearchIds(visibility),
+  );
 
   return Response.json({
     query,

@@ -10,6 +10,7 @@ import {
   type TouchEvent,
 } from "react";
 
+import { ResultsViewProvider } from "@/components/results-view-context";
 import {
   DEFAULT_RESULTS_VIEW,
   parseResultsView,
@@ -102,7 +103,10 @@ function ResultsTabPanel({
       aria-labelledby={labelledBy}
       aria-hidden={!isActive}
       inert={!isActive}
-      className="w-1/2 min-w-0 shrink-0 space-y-6"
+      className={[
+        "w-1/2 min-w-0 shrink-0 space-y-6",
+        isActive ? "relative z-10" : "pointer-events-none overflow-hidden",
+      ].join(" ")}
     >
       {children}
     </div>
@@ -278,25 +282,31 @@ export function ResultsViewTabs({
         })}
       </div>
 
-      <div className="overflow-x-clip">
-        <div
-          className={["flex w-[200%]", SLIDE_MOTION].join(" ")}
-          style={{
-            transform: view === "sold" ? "translateX(0)" : "translateX(-50%)",
-          }}
-        >
-          <ResultsTabPanel view="sold" panelView={view} labelledBy={tabId("sold")}>
-            {sold}
-          </ResultsTabPanel>
-          <ResultsTabPanel
-            view="active"
-            panelView={view}
-            labelledBy={tabId("active")}
+      <ResultsViewProvider view={view}>
+        <div className="overflow-hidden">
+          <div
+            className={["flex w-[200%]", SLIDE_MOTION].join(" ")}
+            style={{
+              transform: view === "sold" ? "translateX(0)" : "translateX(-50%)",
+            }}
           >
-            {active}
-          </ResultsTabPanel>
+            <ResultsTabPanel
+              view="sold"
+              panelView={view}
+              labelledBy={tabId("sold")}
+            >
+              {sold}
+            </ResultsTabPanel>
+            <ResultsTabPanel
+              view="active"
+              panelView={view}
+              labelledBy={tabId("active")}
+            >
+              {active}
+            </ResultsTabPanel>
+          </div>
         </div>
-      </div>
+      </ResultsViewProvider>
     </div>
   );
 }

@@ -1,9 +1,12 @@
 import { Suspense } from "react";
 
+import { ComparisonBarSkeleton } from "@/components/comparison-bar";
+import { ComparisonBarForKindFiltered } from "@/components/comparison-bar-client";
+import { MarketplacePanelGate } from "@/components/marketplace-visibility";
 import {
-  ComparisonBarForKind,
-  ComparisonBarSkeleton,
-} from "@/components/comparison-bar";
+  MarketplacePanelsEmptyHint,
+  VisibleLinkOutSection,
+} from "@/components/marketplace-panels-empty";
 import {
   MarketplaceCard,
   MarketplaceCardSkeleton,
@@ -15,6 +18,9 @@ import type {
   PanelSearchId,
   SearchQuery,
 } from "@/lib/marketplaces/types";
+import { isMarketplaceEnabled } from "@/lib/marketplace-visibility";
+import { getMarketplaceVisibilityFromRequest } from "@/lib/marketplace-visibility-server";
+import { enabledPanelSearchIdsForKind } from "@/lib/marketplace-visibility";
 import { marketplacePanelsForKind } from "@/lib/marketplaces/marketplace-panels";
 import { searchAllMarketplaces, searchMarketplace } from "@/lib/search-service";
 
@@ -103,34 +109,6 @@ function SectionHeader({
   );
 }
 
-function SectionHeaderSkeleton({ listingKind }: { listingKind: ListingKind }) {
-  const isSold = listingKind === "sold";
-  const { title, eyebrow } = sectionCopy(listingKind);
-
-  return (
-    <SectionHeaderFrame listingKind={listingKind}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span
-          className={`size-2 shrink-0 rounded-full ${isSold ? "bg-accent" : "bg-vinted"}`}
-          aria-hidden
-        />
-        <p
-          className={`text-[11px] font-bold uppercase tracking-[0.14em] ${isSold ? "text-accent" : "text-vinted"}`}
-        >
-          {eyebrow}
-        </p>
-        <span className="hidden text-muted/50 sm:inline" aria-hidden>
-          ·
-        </span>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-          {title}
-        </h2>
-      </div>
-      <div className="mt-2 h-4 w-full max-w-lg rounded bg-surface-muted animate-pulse" />
-    </SectionHeaderFrame>
-  );
-}
-
 async function MarketplaceResultCard({
   searchId,
   query,
@@ -161,16 +139,20 @@ function PanelGrid({
   return (
     <div className="grid gap-5 md:grid-cols-2">
       {panels.map(({ searchId, id, label }) => (
-        <Suspense
+        <MarketplacePanelGate
           key={`${searchId}-${searchKey}`}
-          fallback={
-            <MarketplaceCardSkeleton marketplace={id} label={label} loading />
-          }
+          marketplaceId={id}
         >
-          <MarketplaceLoadTracker searchId={searchId}>
-            <MarketplaceResultCard searchId={searchId} query={query} />
-          </MarketplaceLoadTracker>
-        </Suspense>
+          <Suspense
+            fallback={
+              <MarketplaceCardSkeleton marketplace={id} label={label} loading />
+            }
+          >
+            <MarketplaceLoadTracker searchId={searchId}>
+              <MarketplaceResultCard searchId={searchId} query={query} />
+            </MarketplaceLoadTracker>
+          </Suspense>
+        </MarketplacePanelGate>
       ))}
     </div>
   );
@@ -196,18 +178,20 @@ function LinkOutPanelsSection({
   const kindLabel = listingKind === "sold" ? "sold comps" : "active listings";
 
   return (
-    <div className="space-y-3 border-t border-border-subtle pt-6">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted">
-          Search on site
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          Open these marketplaces with the same query when in-app {kindLabel}{" "}
-          aren&apos;t available here.
-        </p>
+    <VisibleLinkOutSection panels={panels}>
+      <div className="space-y-3 border-t border-border-subtle pt-6">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            Search on site
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            Open these marketplaces with the same query when in-app {kindLabel}{" "}
+            aren&apos;t available here.
+          </p>
+        </div>
+        <PanelGrid panels={panels} query={query} searchKey={searchKey} />
       </div>
-      <PanelGrid panels={panels} query={query} searchKey={searchKey} />
-    </div>
+    </VisibleLinkOutSection>
   );
 }
 
@@ -227,63 +211,15 @@ async function SectionComparison({
   query: SearchQuery;
   listingKind: ListingKind;
 }) {
-  const results = await searchAllMarketplaces(query);
-  return <ComparisonBarForKind results={results} listingKind={listingKind} />;
-}
-
-export function MarketplaceResultsSectionSkeleton({
-  listingKind,
-  loading = true,
-  className,
-}: {
-  listingKind: ListingKind;
-  loading?: boolean;
-  className?: string;
-}) {
-  const panels = marketplacePanelsForKind(listingKind);
-  if (panels.length === 0) return null;
-
-  const { dataPanels, linkOutPanels } = splitPanelsByLinkOut(panels);
-
+  const visibility = await getMarketplaceVisibilityFromRequest();
+  const searchIds = enabledPanelSearchIdsForKind(visibility, listingKind);
+  const results = await searchAllMarketplaces(query, searchIds);
   return (
-    <section
-      aria-labelledby={sectionHeadingId(listingKind)}
-      className={className ?? "space-y-6"}
-    >
-      <SectionHeaderSkeleton listingKind={listingKind} />
-      <ComparisonBarSkeleton loading={loading} />
-      {dataPanels.length > 0 ? (
-        <div className="grid gap-5 md:grid-cols-2">
-          {dataPanels.map(({ searchId, id, label }) => (
-            <MarketplaceCardSkeleton
-              key={searchId}
-              marketplace={id}
-              label={label}
-              loading={loading}
-            />
-          ))}
-        </div>
-      ) : null}
-      {linkOutPanels.length > 0 ? (
-        <div className="space-y-3 border-t border-border-subtle pt-6">
-          <div className="h-4 w-32 animate-pulse rounded bg-surface-muted" />
-          <div className="grid gap-5 md:grid-cols-2">
-            {linkOutPanels.map(({ searchId, id, label }) => (
-              <MarketplaceCardSkeleton
-                key={searchId}
-                marketplace={id}
-                label={label}
-                loading={loading}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
-    </section>
+    <ComparisonBarForKindFiltered results={results} listingKind={listingKind} />
   );
 }
 
-export function MarketplaceResultsSection({
+export async function MarketplaceResultsSection({
   listingKind,
   query,
   searchKey,
@@ -294,9 +230,13 @@ export function MarketplaceResultsSection({
   searchKey: string;
   className?: string;
 }) {
-  const panels = marketplacePanelsForKind(listingKind);
-  if (panels.length === 0) return null;
+  const visibility = await getMarketplaceVisibilityFromRequest();
+  const allPanels = marketplacePanelsForKind(listingKind);
+  if (allPanels.length === 0) return null;
 
+  const panels = allPanels.filter((panel) =>
+    isMarketplaceEnabled(visibility, panel.id),
+  );
   const { dataPanels, linkOutPanels } = splitPanelsByLinkOut(panels);
   const { description } = sectionCopy(listingKind);
 
@@ -322,6 +262,8 @@ export function MarketplaceResultsSection({
         query={query}
         searchKey={searchKey}
       />
+
+      <MarketplacePanelsEmptyHint listingKind={listingKind} />
     </section>
   );
 }

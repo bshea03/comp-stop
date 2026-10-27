@@ -19,7 +19,7 @@ import {
   DEFAULT_DAYS_BACK,
   SEARCH_PARAM_KEYS,
 } from "@/lib/schema";
-import { PANEL_SEARCH_IDS } from "@/lib/marketplaces/marketplace-panels";
+import { useMarketplaceVisibility } from "@/components/marketplace-visibility";
 import type { PanelSearchId } from "@/lib/marketplaces/types";
 
 type SearchStateContextValue = {
@@ -43,6 +43,7 @@ function searchKeyFromParams(params: URLSearchParams): string | null {
   return buildSearchParams({
     keywords,
     brand: params.get(SEARCH_PARAM_KEYS.brand)?.trim() || undefined,
+    size: params.get(SEARCH_PARAM_KEYS.size)?.trim() || undefined,
     condition: (params.get(SEARCH_PARAM_KEYS.condition)?.trim() ||
       undefined) as Parameters<typeof buildSearchParams>[0]["condition"],
     daysBack: Number(params.get(SEARCH_PARAM_KEYS.daysBack) ?? DEFAULT_DAYS_BACK),
@@ -72,6 +73,7 @@ export function SearchStateProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const { enabledPanelSearchIds } = useMarketplaceVisibility();
   const [isPending, startTransition] = useTransition();
   const [generation, setGeneration] = useState(0);
   const [incomplete, setIncomplete] = useState<Set<PanelSearchId>>(new Set());
@@ -80,8 +82,20 @@ export function SearchStateProvider({
   const resetMarketplaceLoads = useCallback(() => {
     generationRef.current += 1;
     setGeneration(generationRef.current);
-    setIncomplete(new Set(PANEL_SEARCH_IDS));
-  }, []);
+    setIncomplete(new Set(enabledPanelSearchIds));
+  }, [enabledPanelSearchIds]);
+
+  useEffect(() => {
+    setIncomplete((prev) => {
+      if (prev.size === 0) return prev;
+      const enabled = new Set(enabledPanelSearchIds);
+      const next = new Set<PanelSearchId>();
+      for (const id of prev) {
+        if (enabled.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [enabledPanelSearchIds]);
 
   const onSearchKeyChange = useCallback(
     (searchKey: string | null) => {

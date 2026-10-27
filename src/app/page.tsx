@@ -4,12 +4,11 @@ import { SiteHeader } from "@/components/site-header";
 import { SearchFiltersFooter } from "@/components/search-filters-footer";
 import { EmptyState } from "@/components/empty-state";
 import { MockDataNoticeBlock } from "@/components/mock-data-notice-block";
-import {
-  MarketplaceResultsSection,
-  MarketplaceResultsSectionSkeleton,
-} from "@/components/marketplace-results-section";
+import { MarketplaceResultsSection } from "@/components/marketplace-results-section";
+import { MarketplaceResultsSectionSkeleton } from "@/components/marketplace-results-section-skeleton";
 import { ResultsViewTabs } from "@/components/results-view-tabs";
 import { ResultsLoadingShell } from "@/components/results-loading-shell";
+import { MarketplaceVisibilityProvider } from "@/components/marketplace-visibility";
 import { SearchStateProvider } from "@/components/search-state";
 import { SearchForm, SearchFormSkeleton } from "@/components/search-form";
 import { buildSearchParams } from "@/lib/schema";
@@ -20,6 +19,7 @@ function QueryRecap({ query }: { query: SearchQuery }) {
   const window = TIME_WINDOWS.find((option) => option.days === query.daysBack);
   const filters = [
     query.brand && `brand ${query.brand}`,
+    query.size && `size ${query.size}`,
     query.condition && query.condition.toLowerCase(),
     (window?.label ?? `last ${query.daysBack} days`).toLowerCase(),
   ].filter(Boolean);
@@ -90,15 +90,17 @@ export default function Home({ searchParams }: PageProps<"/">) {
       <SiteHeader />
 
       <div className="mt-6 space-y-6">
-        <SearchStateProvider>
-          <Suspense fallback={<SearchFormSkeleton />}>
-            <SearchForm />
-          </Suspense>
+        <MarketplaceVisibilityProvider>
+          <SearchStateProvider>
+            <Suspense fallback={<SearchFormSkeleton />}>
+              <SearchForm />
+            </Suspense>
 
-          <Suspense fallback={<ResultsSkeleton />}>
-            <Results searchParams={searchParams} />
-          </Suspense>
-        </SearchStateProvider>
+            <Suspense fallback={<ResultsSkeleton />}>
+              <Results searchParams={searchParams} />
+            </Suspense>
+          </SearchStateProvider>
+        </MarketplaceVisibilityProvider>
       </div>
     </main>
   );

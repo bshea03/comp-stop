@@ -24,6 +24,7 @@ export const DEFAULT_LIMIT = 60;
 export const SEARCH_PARAM_KEYS = {
   keywords: "q",
   brand: "brand",
+  size: "size",
   condition: "condition",
   daysBack: "days",
 } as const;
@@ -37,6 +38,7 @@ const trimmedText = z
 export const searchQuerySchema = z.object({
   keywords: z.string().trim().min(1, "Enter a garment, brand, or tag").max(120),
   brand: trimmedText.optional(),
+  size: trimmedText.optional(),
   condition: z.enum(CONDITIONS).optional(),
   daysBack: z.coerce
     .number()
@@ -88,6 +90,7 @@ export function parseSearchParams(params: RawSearchParams): SearchQuery | null {
   const result = searchQuerySchema.safeParse({
     keywords,
     brand: firstValue(params[SEARCH_PARAM_KEYS.brand]),
+    size: firstValue(params[SEARCH_PARAM_KEYS.size]),
     condition: firstValue(params[SEARCH_PARAM_KEYS.condition]),
     daysBack: firstValue(params[SEARCH_PARAM_KEYS.daysBack]),
     limit: undefined,
@@ -101,6 +104,7 @@ export function buildSearchParams(query: Partial<SearchQuery>): string {
   const params = new URLSearchParams();
   if (query.keywords) params.set(SEARCH_PARAM_KEYS.keywords, query.keywords);
   if (query.brand) params.set(SEARCH_PARAM_KEYS.brand, query.brand);
+  if (query.size) params.set(SEARCH_PARAM_KEYS.size, query.size);
   if (query.condition) params.set(SEARCH_PARAM_KEYS.condition, query.condition);
   if (query.daysBack && query.daysBack !== DEFAULT_DAYS_BACK) {
     params.set(SEARCH_PARAM_KEYS.daysBack, String(query.daysBack));

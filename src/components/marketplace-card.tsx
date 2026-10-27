@@ -19,7 +19,7 @@ function CardShell({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm">
+    <section className="flex min-w-0 flex-col rounded-2xl border border-border-subtle bg-surface p-5 shadow-sm">
       <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span
           className={`size-2.5 rounded-full ${MARKETPLACE_THEME[marketplace].dot}`}

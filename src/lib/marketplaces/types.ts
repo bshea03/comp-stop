@@ -18,6 +18,7 @@ export type DataSource = "live" | "mock";
 export type SearchQuery = {
   keywords: string;
   brand?: string;
+  size?: string;
   condition?: string;
   daysBack: number;
   limit: number;
