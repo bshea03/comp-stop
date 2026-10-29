@@ -1,95 +1,20 @@
 import { ebayBrowseConditionFilter } from "@/lib/marketplaces/ebay/condition-ids";
+import {
+  ebayApiOrigin,
+  ebayMarketplaceId,
+  fetchEbayApplicationToken,
+} from "@/lib/marketplaces/ebay/application-token";
 import { stripEnv } from "@/lib/env";
 import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
 import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
 
-const OAUTH_SCOPE = "https://api.ebay.com/oauth/api_scope";
-
-type CachedToken = {
-  accessToken: string;
-  expiresAtMs: number;
-};
-
-let cachedToken: CachedToken | null = null;
-
-function ebayApiOrigin(): string {
-  const sandbox = stripEnv(process.env.EBAY_SANDBOX);
-  return sandbox === "1" || sandbox?.toLowerCase() === "true"
-    ? "https://api.sandbox.ebay.com"
-    : "https://api.ebay.com";
-}
-
-function ebayMarketplaceId(): string {
-  return stripEnv(process.env.EBAY_MARKETPLACE_ID) ?? "EBAY_US";
-}
+const BROWSE_OAUTH_SCOPE = "https://api.ebay.com/oauth/api_scope";
 
 function ebayBrowseFetchLimit(query: SearchQuery): number {
   const raw = stripEnv(process.env.EBAY_BROWSE_MAX_LISTINGS);
   const cap = raw ? Number.parseInt(raw, 10) : 60;
   const resolved = Number.isFinite(cap) && cap > 0 ? cap : 60;
   return Math.min(query.limit, resolved, 200);
-}
-
-async function fetchEbayApplicationToken(
-  signal: AbortSignal,
-): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAtMs - 60_000) {
-    return cachedToken.accessToken;
-  }
-
-  const clientId = stripEnv(process.env.EBAY_CLIENT_ID);
-  const clientSecret = stripEnv(process.env.EBAY_CLIENT_SECRET);
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      "Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET from the eBay Developer Program (https://developer.ebay.com) for active listing comps.",
-    );
-  }
-
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-    "base64",
-  );
-
-  const response = await fetch(`${ebayApiOrigin()}/identity/v1/oauth2/token`, {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${credentials}`,
-    },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      scope: OAUTH_SCOPE,
-    }),
-  });
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw new Error(
-      `eBay OAuth HTTP ${response.status}: ${raw.slice(0, 200)}`,
-    );
-  }
-
-  let json: { access_token?: string; expires_in?: number };
-  try {
-    json = JSON.parse(raw) as { access_token?: string; expires_in?: number };
-  } catch {
-    throw new Error("eBay OAuth returned invalid JSON.");
-  }
-
-  if (!json.access_token) {
-    throw new Error("eBay OAuth response did not include an access token.");
-  }
-
-  const expiresInSec =
-    typeof json.expires_in === "number" && json.expires_in > 0
-      ? json.expires_in
-      : 7200;
-  cachedToken = {
-    accessToken: json.access_token,
-    expiresAtMs: Date.now() + expiresInSec * 1000,
-  };
-
-  return cachedToken.accessToken;
 }
 
 type BrowseItemSummary = {
@@ -149,7 +74,11 @@ export async function searchEbayBrowseActive(
   query: SearchQuery,
   signal: AbortSignal,
 ): Promise<SoldListing[]> {
-  const token = await fetchEbayApplicationToken(signal);
+  const token = await fetchEbayApplicationToken(
+    BROWSE_OAUTH_SCOPE,
+    signal,
+    "Add EBAY_CLIENT_ID and EBAY_CLIENT_SECRET from the eBay Developer Program (https://developer.ebay.com) for active listing comps.",
+  );
   const limit = ebayBrowseFetchLimit(query);
   const q = keywordString(query) || query.keywords.trim();
 

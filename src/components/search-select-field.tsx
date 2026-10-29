@@ -10,6 +10,8 @@ import {
   type KeyboardEvent,
 } from "react";
 
+import { dropdownPanelClasses } from "@/lib/ui/dropdown-panel-classes";
+
 type SearchSelectOption = {
   kind: "option";
   value: string;
@@ -30,24 +32,6 @@ type SearchSelectFieldProps = {
   className?: string;
   listAriaLabel: string;
 };
-
-const LISTBOX_BASE_CLASSES = [
-  "absolute z-50 mt-1.5 w-full rounded-lg",
-  "border border-accent/30 bg-surface-muted py-1",
-  "shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-foreground/10",
-].join(" ");
-
-/** Short filter lists (condition, sold within) fit without scrolling. */
-const LISTBOX_SCROLLABLE_CLASSES = "max-h-56 overflow-y-auto";
-
-function listboxClasses(optionCount: number): string {
-  return [
-    LISTBOX_BASE_CLASSES,
-    optionCount > 10 ? LISTBOX_SCROLLABLE_CLASSES : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
 
 function isOption(item: SearchSelectListItem): item is SearchSelectOption {
   return item.kind === "option";
@@ -196,7 +180,7 @@ export function SearchSelectField({
           id={listboxId}
           role="listbox"
           aria-label={listAriaLabel}
-          className={listboxClasses(options.length)}
+          className={dropdownPanelClasses(options.length)}
         >
           {items.map((item, itemIndex) => {
             if (item.kind === "divider") {

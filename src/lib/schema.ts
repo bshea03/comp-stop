@@ -64,6 +64,9 @@ export const searchQuerySchema = z.object({
     .default(DEFAULT_LIMIT),
 });
 
+export type SearchQueryFields = z.infer<typeof searchQuerySchema>;
+export type ConditionQuery = SearchQueryFields["condition"];
+
 export const soldListingSchema = z.object({
   id: z.string().min(1),
   marketplace: z.enum(MARKETPLACE_IDS),
@@ -84,6 +87,68 @@ export type RawSearchParams = Record<string, string | string[] | undefined>;
 
 function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+const searchFieldsSchema = searchQuerySchema.pick({
+  keywords: true,
+  brand: true,
+  size: true,
+  condition: true,
+  daysBack: true,
+});
+
+/** Reads URL / form fields into a partial query (invalid optionals are omitted). */
+export function readSearchQueryFields(input: {
+  keywords?: string | null;
+  brand?: string | null;
+  size?: string | null;
+  condition?: string | null;
+  daysBack?: string | number | null;
+}): Partial<SearchQuery> {
+  const parsed = searchFieldsSchema.safeParse({
+    keywords: input.keywords?.trim() ?? "",
+    brand: input.brand ?? undefined,
+    size: input.size ?? undefined,
+    condition: input.condition ?? undefined,
+    daysBack: input.daysBack ?? undefined,
+  });
+
+  if (!parsed.success || !parsed.data.keywords) {
+    return {};
+  }
+
+  return parsed.data;
+}
+
+export function readSearchQueryFromSearchParams(
+  params: URLSearchParams,
+): Partial<SearchQuery> {
+  return readSearchQueryFields({
+    keywords: params.get(SEARCH_PARAM_KEYS.keywords),
+    brand: params.get(SEARCH_PARAM_KEYS.brand),
+    size: params.get(SEARCH_PARAM_KEYS.size),
+    condition: params.get(SEARCH_PARAM_KEYS.condition),
+    daysBack: params.get(SEARCH_PARAM_KEYS.daysBack),
+  });
+}
+
+export function readSearchQueryFromFormData(data: FormData): Partial<SearchQuery> {
+  const read = (key: string) =>
+    (data.get(key) as string | null)?.trim() || undefined;
+
+  return readSearchQueryFields({
+    keywords: read(SEARCH_PARAM_KEYS.keywords),
+    brand: read(SEARCH_PARAM_KEYS.brand),
+    size: read(SEARCH_PARAM_KEYS.size),
+    condition: read(SEARCH_PARAM_KEYS.condition),
+    daysBack: (data.get(SEARCH_PARAM_KEYS.daysBack) as string | null) ?? undefined,
+  });
+}
+
+/** Canonical querystring key for deduping searches (excludes `limit` and `view`). */
+export function searchQueryCacheKey(query: Partial<SearchQuery>): string | null {
+  if (!query.keywords?.trim()) return null;
+  return buildSearchParams(query);
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   mergeBrandSuggestions,
   suggestBrandsFromList,
 } from "@/lib/brands/suggest-clothing-brands";
+import { dropdownPanelClasses } from "@/lib/ui/dropdown-panel-classes";
 
 type BrandAutocompleteInputProps = {
   id: string;
@@ -192,11 +193,7 @@ export function BrandAutocompleteInput({
           id={listboxId}
           role="listbox"
           aria-label="Brand suggestions"
-          className={[
-            "absolute z-50 mt-1.5 max-h-56 w-full overflow-y-auto rounded-lg",
-            "border border-accent/30 bg-surface-muted py-1",
-            "shadow-[0_12px_40px_rgba(0,0,0,0.35)] ring-1 ring-foreground/10",
-          ].join(" ")}
+          className={dropdownPanelClasses(suggestions.length)}
         >
           {suggestions.map((brand, index) => {
             const selected = index === activeIndex;

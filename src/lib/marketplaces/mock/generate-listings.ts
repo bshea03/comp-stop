@@ -4,7 +4,7 @@ import {
   mockGarmentImageUrl,
 } from "@/lib/marketplaces/mock/garment-image";
 import { createRng, hashString } from "@/lib/marketplaces/mock/seeded-random";
-import { USED_CANONICAL_CONDITIONS } from "@/lib/listings/condition-match";
+import { USED_CANONICAL_CONDITIONS } from "@/lib/listings/condition-vocabulary";
 import { CONDITION_USED_ONLY } from "@/lib/schema";
 import type {
   MarketplaceId,

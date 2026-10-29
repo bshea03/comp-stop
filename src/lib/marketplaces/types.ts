@@ -15,11 +15,12 @@ export type PanelSearchId = MarketplaceId | "ebay-active" | "poshmark-active";
 /** Whether a result came from the marketplace itself or from the mock generator. */
 export type DataSource = "live" | "mock";
 
+/** Validated search shape (`@/lib/schema` is the source of truth for parsing). */
 export type SearchQuery = {
   keywords: string;
   brand?: string;
   size?: string;
-  condition?: string;
+  condition?: import("@/lib/schema").ConditionQuery;
   daysBack: number;
   limit: number;
 };

@@ -1,9 +1,13 @@
 import { unstable_cache } from "next/cache";
 
 import { dedupeClothingBrandNames } from "@/lib/brands/build-clothing-brands";
-import { stripEnv } from "@/lib/env";
+import {
+  ebayApiOrigin,
+  ebayMarketplaceId,
+  fetchEbayApplicationToken,
+} from "@/lib/marketplaces/ebay/application-token";
 
-const OAUTH_SCOPE =
+const TAXONOMY_OAUTH_SCOPE =
   "https://api.ebay.com/oauth/api_scope https://api.ebay.com/oauth/api_scope/commerce.taxonomy.readonly";
 
 /** Leaf apparel categories on EBAY_US (tree id 0). */
@@ -16,73 +20,6 @@ const EBAY_APPAREL_LEAF_CATEGORY_IDS = [
   "15689", // Men's Activewear
   "11483", // Men's Sweaters
 ] as const;
-
-type CachedToken = {
-  accessToken: string;
-  expiresAtMs: number;
-};
-
-let cachedToken: CachedToken | null = null;
-
-function ebayApiOrigin(): string {
-  const sandbox = stripEnv(process.env.EBAY_SANDBOX);
-  return sandbox === "1" || sandbox?.toLowerCase() === "true"
-    ? "https://api.sandbox.ebay.com"
-    : "https://api.ebay.com";
-}
-
-async function fetchApplicationToken(signal: AbortSignal): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAtMs - 60_000) {
-    return cachedToken.accessToken;
-  }
-
-  const clientId = stripEnv(process.env.EBAY_CLIENT_ID);
-  const clientSecret = stripEnv(process.env.EBAY_CLIENT_SECRET);
-  if (!clientId || !clientSecret) {
-    throw new Error("eBay developer credentials are not configured.");
-  }
-
-  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
-    "base64",
-  );
-
-  const response = await fetch(`${ebayApiOrigin()}/identity/v1/oauth2/token`, {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${credentials}`,
-    },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      scope: OAUTH_SCOPE,
-    }),
-  });
-
-  const raw = await response.text();
-  if (!response.ok) {
-    throw new Error(`eBay OAuth HTTP ${response.status}: ${raw.slice(0, 200)}`);
-  }
-
-  const json = JSON.parse(raw) as {
-    access_token?: string;
-    expires_in?: number;
-  };
-  if (!json.access_token) {
-    throw new Error("eBay OAuth response did not include an access token.");
-  }
-
-  const expiresInSec =
-    typeof json.expires_in === "number" && json.expires_in > 0
-      ? json.expires_in
-      : 7200;
-  cachedToken = {
-    accessToken: json.access_token,
-    expiresAtMs: Date.now() + expiresInSec * 1000,
-  };
-
-  return cachedToken.accessToken;
-}
 
 type EbayAspectValue = { localizedValue?: string };
 type EbayAspect = {
@@ -122,9 +59,13 @@ async function fetchBrandValuesForCategory(
 
 async function fetchEbayClothingBrandsUncached(): Promise<string[]> {
   const signal = AbortSignal.timeout(25_000);
-  const token = await fetchApplicationToken(signal);
+  const token = await fetchEbayApplicationToken(
+    TAXONOMY_OAUTH_SCOPE,
+    signal,
+    "eBay developer credentials are not configured.",
+  );
 
-  const marketplaceId = stripEnv(process.env.EBAY_MARKETPLACE_ID) ?? "EBAY_US";
+  const marketplaceId = ebayMarketplaceId();
   const treeResponse = await fetch(
     `${ebayApiOrigin()}/commerce/taxonomy/v1/get_default_category_tree_id?marketplace_id=${encodeURIComponent(marketplaceId)}`,
     {

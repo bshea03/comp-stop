@@ -1,26 +1,20 @@
+import {
+  CANONICAL_CONDITION_DISPLAY,
+  type CanonicalCondition,
+  USED_CANONICAL_CONDITIONS,
+} from "@/lib/listings/condition-vocabulary";
 import { CONDITION_USED_ONLY, CONDITIONS } from "@/lib/schema";
 import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
 
-export type CanonicalCondition = (typeof CONDITIONS)[number];
-
-export const USED_CANONICAL_CONDITIONS = [
-  "Excellent",
-  "Good",
-  "Fair",
-] as const satisfies readonly CanonicalCondition[];
-
-export function conditionFilterLabel(condition: string): string {
-  if (condition === CONDITION_USED_ONLY) return "Used only";
-  return condition;
-}
-
-const CANONICAL_CONDITION_DISPLAY: Record<CanonicalCondition, string> = {
-  "New with tags": "New - With Tags",
-  "New without tags": "New - Without Tags",
-  Excellent: "Used - Like New",
-  Good: "Used - Good",
-  Fair: "Used - Fair",
-};
+export type { CanonicalCondition } from "@/lib/listings/condition-vocabulary";
+export {
+  CANONICAL_CONDITION_DISPLAY,
+  conditionFilterLabel,
+  CONDITION_SEARCH_SELECT_ITEMS,
+  poshmarkConditionFromCode,
+  USED_CANONICAL_CONDITIONS,
+  usedOnlyGradeDisplayLabels,
+} from "@/lib/listings/condition-vocabulary";
 
 /** User-facing condition on comp rows (maps marketplace labels to a consistent format). */
 export function formatListingCondition(
@@ -98,9 +92,7 @@ export function listingMatchesQueryCondition(
   return listingCondition === queryCondition;
 }
 
-function isCanonicalCondition(
-  value: string,
-): value is CanonicalCondition {
+function isCanonicalCondition(value: string): value is CanonicalCondition {
   return (CONDITIONS as readonly string[]).includes(value);
 }
 

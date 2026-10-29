@@ -2,6 +2,7 @@ import { BrandFilterNotice } from "@/components/brand-filter-notice";
 import { SizeFilterNotice } from "@/components/size-filter-notice";
 import {
   conditionFilterLabel,
+  usedOnlyGradeDisplayLabels,
 } from "@/lib/listings/condition-match";
 import { CONDITION_USED_ONLY } from "@/lib/schema";
 import type { SearchQuery } from "@/lib/marketplaces/types";
@@ -14,14 +15,18 @@ function ConditionFilterNotice({
   const label = conditionFilterLabel(condition);
 
   if (condition === CONDITION_USED_ONLY) {
+    const grades = usedOnlyGradeDisplayLabels();
     return (
       <p className="text-xs text-muted">
         Comps exclude new listings and include{" "}
-        <span className="font-medium text-foreground">Excellent</span>,{" "}
-        <span className="font-medium text-foreground">Good</span>, and{" "}
-        <span className="font-medium text-foreground">Fair</span> when the
-        marketplace reports a condition we can map. Unmapped conditions are
-        dropped from averages.
+        {grades.map((grade, index) => (
+          <span key={grade}>
+            {index > 0 ? (index === grades.length - 1 ? ", and " : ", ") : null}
+            <span className="font-medium text-foreground">{grade}</span>
+          </span>
+        ))}{" "}
+        when the marketplace reports a condition we can map. Unmapped conditions
+        are dropped from averages.
       </p>
     );
   }

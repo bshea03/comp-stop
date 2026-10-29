@@ -1,21 +1,22 @@
 "use client";
 
 import { useSearchState } from "@/components/search-state";
-import { SearchKeywordsInput } from "@/components/search-keywords-input";
-import { SearchOptionalTextInput } from "@/components/search-optional-text-input";
+import { SearchTextInput } from "@/components/search-text-input";
 import { SearchSelectField } from "@/components/search-select-field";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { BrandAutocompleteInput } from "@/components/brand-autocomplete-input";
 import { MarketplacePanelMenu } from "@/components/marketplace-panel-menu";
+import { CONDITION_SEARCH_SELECT_ITEMS } from "@/lib/listings/condition-match";
 import { RESULTS_VIEW_PARAM } from "@/lib/results-view";
 import {
   buildSearchParams,
-  CONDITION_USED_ONLY,
-  CONDITIONS,
   DEFAULT_DAYS_BACK,
+  readSearchQueryFromFormData,
+  readSearchQueryFromSearchParams,
   SEARCH_PARAM_KEYS,
+  searchQueryCacheKey,
   TIME_WINDOWS,
 } from "@/lib/schema";
 
@@ -59,26 +60,15 @@ export function SearchForm() {
   const searchParams = useSearchParams();
   const { isSearching, startTransition, beginSearch } = useSearchState();
 
-  const current = {
-    keywords: searchParams.get(SEARCH_PARAM_KEYS.keywords) ?? "",
-    brand: searchParams.get(SEARCH_PARAM_KEYS.brand) ?? "",
-    size: searchParams.get(SEARCH_PARAM_KEYS.size) ?? "",
-    condition: searchParams.get(SEARCH_PARAM_KEYS.condition) ?? "",
-    daysBack: searchParams.get(SEARCH_PARAM_KEYS.daysBack) ?? String(DEFAULT_DAYS_BACK),
-  };
+  const current = useMemo(
+    () => readSearchQueryFromSearchParams(searchParams),
+    [searchParams],
+  );
 
-  const currentSearchKey = current.keywords
-    ? buildSearchParams({
-        keywords: current.keywords,
-        brand: current.brand || undefined,
-        size: current.size || undefined,
-        condition: (current.condition || undefined) as
-          | (typeof CONDITIONS)[number]
-          | typeof CONDITION_USED_ONLY
-          | undefined,
-        daysBack: Number(current.daysBack),
-      })
-    : "";
+  const currentSearchKey = useMemo(
+    () => searchQueryCacheKey(current) ?? "",
+    [current],
+  );
 
   const clearSearch = useCallback(() => {
     if (isSearching) return;
@@ -92,25 +82,12 @@ export function SearchForm() {
       event.preventDefault();
       if (isSearching) return;
 
-      const data = new FormData(event.currentTarget);
-      const read = (key: string) =>
-        (data.get(key) as string | null)?.trim() || undefined;
-
-      const keywords = read(SEARCH_PARAM_KEYS.keywords);
-      if (!keywords) return;
-
-      const params = new URLSearchParams(
-        buildSearchParams({
-          keywords,
-          brand: read(SEARCH_PARAM_KEYS.brand),
-          size: read(SEARCH_PARAM_KEYS.size),
-          condition: read(SEARCH_PARAM_KEYS.condition) as
-            | (typeof CONDITIONS)[number]
-            | typeof CONDITION_USED_ONLY
-            | undefined,
-          daysBack: Number(data.get(SEARCH_PARAM_KEYS.daysBack)),
-        }),
+      const query = readSearchQueryFromFormData(
+        new FormData(event.currentTarget),
       );
+      if (!query.keywords) return;
+
+      const params = new URLSearchParams(buildSearchParams(query));
       params.delete(RESULTS_VIEW_PARAM);
 
       const nextSearch = params.toString();
@@ -140,8 +117,7 @@ export function SearchForm() {
   );
 
   return (
-    // Remounting on URL change keeps the uncontrolled fields in step with
-    // browser back/forward navigation.
+    // Remounting on URL change resets controlled fields after browser navigation.
     <form
       key={searchParams.toString()}
       action="/"
@@ -155,12 +131,14 @@ export function SearchForm() {
           htmlFor="field-keywords"
           className="lg:col-span-4"
         >
-          <SearchKeywordsInput
+          <SearchTextInput
             id="field-keywords"
             name={SEARCH_PARAM_KEYS.keywords}
-            defaultValue={current.keywords}
+            defaultValue={current.keywords ?? ""}
             placeholder="wool bomber jacket"
+            clearLabel="Clear keywords"
             required
+            enterKeyHint="search"
             className={FIELD_CLASSES}
           />
         </Field>
@@ -169,17 +147,17 @@ export function SearchForm() {
           <BrandAutocompleteInput
             id="field-brand"
             name={SEARCH_PARAM_KEYS.brand}
-            defaultValue={current.brand}
+            defaultValue={current.brand ?? ""}
             placeholder="Carhartt"
             className={FIELD_CLASSES}
           />
         </Field>
 
         <Field label="Size" htmlFor="field-size" className="lg:col-span-1">
-          <SearchOptionalTextInput
+          <SearchTextInput
             id="field-size"
             name={SEARCH_PARAM_KEYS.size}
-            defaultValue={current.size}
+            defaultValue={current.size ?? ""}
             placeholder="M"
             clearLabel="Clear size"
             className={FIELD_CLASSES}
@@ -194,19 +172,10 @@ export function SearchForm() {
           <SearchSelectField
             id="field-condition"
             name={SEARCH_PARAM_KEYS.condition}
-            defaultValue={current.condition}
+            defaultValue={current.condition ?? ""}
             listAriaLabel="Condition options"
             className={FIELD_CLASSES}
-            items={[
-              { kind: "option", value: "", label: "Any" },
-              { kind: "option", value: CONDITION_USED_ONLY, label: "Used only" },
-              { kind: "divider" },
-              ...CONDITIONS.map((condition) => ({
-                kind: "option" as const,
-                value: condition,
-                label: condition,
-              })),
-            ]}
+            items={CONDITION_SEARCH_SELECT_ITEMS}
           />
         </Field>
 
@@ -214,7 +183,7 @@ export function SearchForm() {
           <SearchSelectField
             id="field-days"
             name={SEARCH_PARAM_KEYS.daysBack}
-            defaultValue={current.daysBack}
+            defaultValue={String(current.daysBack ?? DEFAULT_DAYS_BACK)}
             listAriaLabel="Sold within options"
             className={FIELD_CLASSES}
             items={TIME_WINDOWS.map((window) => ({

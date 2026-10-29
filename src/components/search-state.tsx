@@ -15,9 +15,8 @@ import {
 } from "react";
 
 import {
-  buildSearchParams,
-  DEFAULT_DAYS_BACK,
-  SEARCH_PARAM_KEYS,
+  readSearchQueryFromSearchParams,
+  searchQueryCacheKey,
 } from "@/lib/schema";
 import { useMarketplaceVisibility } from "@/components/marketplace-visibility";
 import type { PanelSearchId } from "@/lib/marketplaces/types";
@@ -36,20 +35,6 @@ type SearchStateContextValue = {
 
 const SearchStateContext = createContext<SearchStateContextValue | null>(null);
 
-function searchKeyFromParams(params: URLSearchParams): string | null {
-  const keywords = params.get(SEARCH_PARAM_KEYS.keywords)?.trim();
-  if (!keywords) return null;
-
-  return buildSearchParams({
-    keywords,
-    brand: params.get(SEARCH_PARAM_KEYS.brand)?.trim() || undefined,
-    size: params.get(SEARCH_PARAM_KEYS.size)?.trim() || undefined,
-    condition: (params.get(SEARCH_PARAM_KEYS.condition)?.trim() ||
-      undefined) as Parameters<typeof buildSearchParams>[0]["condition"],
-    daysBack: Number(params.get(SEARCH_PARAM_KEYS.daysBack) ?? DEFAULT_DAYS_BACK),
-  });
-}
-
 function SearchKeyFromUrl({
   onSearchKeyChange,
 }: {
@@ -57,7 +42,7 @@ function SearchKeyFromUrl({
 }) {
   const searchParams = useSearchParams();
   const searchKey = useMemo(
-    () => searchKeyFromParams(searchParams),
+    () => searchQueryCacheKey(readSearchQueryFromSearchParams(searchParams)),
     [searchParams],
   );
 
