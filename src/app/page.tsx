@@ -8,6 +8,7 @@ import { MarketplaceResultsSection } from "@/components/marketplace-results-sect
 import { MarketplaceResultsSectionSkeleton } from "@/components/marketplace-results-section-skeleton";
 import { ResultsViewTabs } from "@/components/results-view-tabs";
 import { ResultsLoadingShell } from "@/components/results-loading-shell";
+import { BrandCatalogProvider } from "@/components/brand-catalog-context";
 import { MarketplaceVisibilityProvider } from "@/components/marketplace-visibility";
 import { SearchStateProvider } from "@/components/search-state";
 import { SearchForm, SearchFormSkeleton } from "@/components/search-form";
@@ -91,6 +92,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
 
       <div className="mt-6 space-y-6">
         <MarketplaceVisibilityProvider>
+          <BrandCatalogProvider>
           <SearchStateProvider>
             <Suspense fallback={<SearchFormSkeleton />}>
               <SearchForm />
@@ -100,6 +102,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
               <Results searchParams={searchParams} />
             </Suspense>
           </SearchStateProvider>
+          </BrandCatalogProvider>
         </MarketplaceVisibilityProvider>
       </div>
     </main>

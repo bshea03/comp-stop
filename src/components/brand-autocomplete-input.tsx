@@ -10,7 +10,11 @@ import {
   type KeyboardEvent,
 } from "react";
 
-import { suggestClothingBrands } from "@/lib/brands/suggest-clothing-brands";
+import { useBrandCatalog } from "@/components/brand-catalog-context";
+import {
+  mergeBrandSuggestions,
+  suggestBrandsFromList,
+} from "@/lib/brands/suggest-clothing-brands";
 
 type BrandAutocompleteInputProps = {
   id: string;
@@ -20,6 +24,9 @@ type BrandAutocompleteInputProps = {
   className?: string;
 };
 
+const LIVE_SUGGEST_DEBOUNCE_MS = 220;
+const SUGGEST_LIMIT = 12;
+
 export function BrandAutocompleteInput({
   id,
   name,
@@ -27,19 +34,65 @@ export function BrandAutocompleteInput({
   placeholder,
   className,
 }: BrandAutocompleteInputProps) {
+  const { brands: catalogBrands } = useBrandCatalog();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [liveSuggestions, setLiveSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     setValue(defaultValue);
   }, [defaultValue]);
 
+  const localSuggestions = useMemo(
+    () =>
+      open
+        ? suggestBrandsFromList(catalogBrands, value, SUGGEST_LIMIT)
+        : [],
+    [catalogBrands, open, value],
+  );
+
+  useEffect(() => {
+    const trimmed = value.trim();
+    if (!open || trimmed.length < 1) {
+      setLiveSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const params = new URLSearchParams({ q: trimmed });
+          const response = await fetch(`/api/brands/suggest?${params}`, {
+            signal: controller.signal,
+          });
+          if (!response.ok) return;
+          const body = (await response.json()) as { brands?: string[] };
+          if (Array.isArray(body.brands)) {
+            setLiveSuggestions(body.brands);
+          }
+        } catch {
+          // Local catalog matches remain visible.
+        }
+      })();
+    }, LIVE_SUGGEST_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [open, value]);
+
   const suggestions = useMemo(
-    () => (open ? suggestClothingBrands(value) : []),
-    [open, value],
+    () =>
+      mergeBrandSuggestions(
+        [liveSuggestions, localSuggestions],
+        SUGGEST_LIMIT,
+      ),
+    [liveSuggestions, localSuggestions],
   );
 
   const closeList = useCallback(() => {

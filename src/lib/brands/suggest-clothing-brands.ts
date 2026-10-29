@@ -5,21 +5,18 @@ const DEFAULT_LIMIT = 10;
 
 type Scored = { brand: string; rank: number; index: number };
 
-/**
- * Typeahead matches against the unified resale brand list (prefix, then substring,
- * then token-prefix). Results are unique display names.
- */
-export function suggestClothingBrands(
+export function suggestBrandsFromList(
+  brands: readonly string[],
   query: string,
   limit = DEFAULT_LIMIT,
 ): string[] {
   const normalizedQuery = normalizeBrandName(query.trim());
-  if (!normalizedQuery) return [];
+  if (!normalizedQuery || brands.length === 0) return [];
 
   const scored: Scored[] = [];
 
-  for (let index = 0; index < CLOTHING_BRANDS.length; index++) {
-    const brand = CLOTHING_BRANDS[index]!;
+  for (let index = 0; index < brands.length; index++) {
+    const brand = brands[index]!;
     const normalizedBrand = normalizeBrandName(brand);
 
     if (normalizedBrand.startsWith(normalizedQuery)) {
@@ -53,4 +50,32 @@ export function suggestClothingBrands(
   }
 
   return results;
+}
+
+/** Typeahead against the bundled static + eBay-backed catalog on the client. */
+export function suggestClothingBrands(
+  query: string,
+  limit = DEFAULT_LIMIT,
+): string[] {
+  return suggestBrandsFromList(CLOTHING_BRANDS, query, limit);
+}
+
+export function mergeBrandSuggestions(
+  groups: readonly (readonly string[])[],
+  limit = DEFAULT_LIMIT,
+): string[] {
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const group of groups) {
+    for (const brand of group) {
+      const key = normalizeBrandName(brand);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      merged.push(brand);
+      if (merged.length >= limit) return merged;
+    }
+  }
+
+  return merged;
 }
