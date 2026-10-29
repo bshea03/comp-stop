@@ -1,7 +1,36 @@
-import { CONDITIONS } from "@/lib/schema";
+import { CONDITION_USED_ONLY, CONDITIONS } from "@/lib/schema";
 import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
 
 export type CanonicalCondition = (typeof CONDITIONS)[number];
+
+export const USED_CANONICAL_CONDITIONS = [
+  "Excellent",
+  "Good",
+  "Fair",
+] as const satisfies readonly CanonicalCondition[];
+
+export function conditionFilterLabel(condition: string): string {
+  if (condition === CONDITION_USED_ONLY) return "Used only";
+  return condition;
+}
+
+const CANONICAL_CONDITION_DISPLAY: Record<CanonicalCondition, string> = {
+  "New with tags": "New - With Tags",
+  "New without tags": "New - Without Tags",
+  Excellent: "Used - Like New",
+  Good: "Used - Good",
+  Fair: "Used - Fair",
+};
+
+/** User-facing condition on comp rows (maps marketplace labels to a consistent format). */
+export function formatListingCondition(
+  raw: string | undefined,
+): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const canonical = canonicalCondition(raw);
+  if (canonical) return CANONICAL_CONDITION_DISPLAY[canonical];
+  return raw.trim();
+}
 
 function normalizeConditionText(value: string): string {
   return value
@@ -55,10 +84,17 @@ export function canonicalCondition(
 
 export function listingMatchesQueryCondition(
   listing: SoldListing,
-  queryCondition: CanonicalCondition,
+  queryCondition: NonNullable<SearchQuery["condition"]>,
 ): boolean {
   const listingCondition = canonicalCondition(listing.condition);
   if (!listingCondition) return false;
+
+  if (queryCondition === CONDITION_USED_ONLY) {
+    return (USED_CANONICAL_CONDITIONS as readonly string[]).includes(
+      listingCondition,
+    );
+  }
+
   return listingCondition === queryCondition;
 }
 
@@ -72,7 +108,13 @@ export function filterListingsByQueryCondition(
   listings: readonly SoldListing[],
   queryCondition: SearchQuery["condition"],
 ): SoldListing[] {
-  if (!queryCondition || !isCanonicalCondition(queryCondition)) {
+  if (!queryCondition) {
+    return [...listings];
+  }
+  if (
+    queryCondition !== CONDITION_USED_ONLY &&
+    !isCanonicalCondition(queryCondition)
+  ) {
     return [...listings];
   }
   return listings.filter((listing) =>

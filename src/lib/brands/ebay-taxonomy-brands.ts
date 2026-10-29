@@ -154,7 +154,7 @@ async function fetchEbayClothingBrandsUncached(): Promise<string[]> {
   return dedupeClothingBrandNames(batches.flat());
 }
 
-export async function fetchEbayClothingBrands(): Promise<string[]> {
+async function fetchEbayClothingBrands(): Promise<string[]> {
   try {
     return await fetchEbayClothingBrandsUncached();
   } catch {

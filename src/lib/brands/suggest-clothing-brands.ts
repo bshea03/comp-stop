@@ -1,4 +1,3 @@
-import { CLOTHING_BRANDS } from "@/lib/brands/clothing-brands";
 import { normalizeBrandName } from "@/lib/listings/brand-match";
 
 const DEFAULT_LIMIT = 10;
@@ -50,14 +49,6 @@ export function suggestBrandsFromList(
   }
 
   return results;
-}
-
-/** Typeahead against the bundled static + eBay-backed catalog on the client. */
-export function suggestClothingBrands(
-  query: string,
-  limit = DEFAULT_LIMIT,
-): string[] {
-  return suggestBrandsFromList(CLOTHING_BRANDS, query, limit);
 }
 
 export function mergeBrandSuggestions(

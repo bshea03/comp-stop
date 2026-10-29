@@ -85,17 +85,18 @@ export function SearchStateProvider({
     setIncomplete(new Set(enabledPanelSearchIds));
   }, [enabledPanelSearchIds]);
 
-  useEffect(() => {
-    setIncomplete((prev) => {
-      if (prev.size === 0) return prev;
-      const enabled = new Set(enabledPanelSearchIds);
-      const next = new Set<PanelSearchId>();
-      for (const id of prev) {
-        if (enabled.has(id)) next.add(id);
-      }
-      return next.size === prev.size ? prev : next;
-    });
-  }, [enabledPanelSearchIds]);
+  const enabledPanelSet = useMemo(
+    () => new Set(enabledPanelSearchIds),
+    [enabledPanelSearchIds],
+  );
+
+  const trackedIncomplete = useMemo(() => {
+    const next = new Set<PanelSearchId>();
+    for (const id of incomplete) {
+      if (enabledPanelSet.has(id)) next.add(id);
+    }
+    return next;
+  }, [enabledPanelSet, incomplete]);
 
   const onSearchKeyChange = useCallback(
     (searchKey: string | null) => {
@@ -121,7 +122,7 @@ export function SearchStateProvider({
     [],
   );
 
-  const isSearching = isPending || incomplete.size > 0;
+  const isSearching = isPending || trackedIncomplete.size > 0;
 
   return (
     <SearchStateContext.Provider

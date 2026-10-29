@@ -4,14 +4,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ListingThumbnail } from "@/components/listing-thumbnail";
 import { useResultsView } from "@/components/results-view-context";
+import { formatListingCondition } from "@/lib/listings/condition-match";
 import type { MarketplaceResult, SoldListing } from "@/lib/marketplaces/types";
 import { formatCents, formatCount, formatDate } from "@/lib/format";
+
+function listingMetaLine(listing: SoldListing): string | undefined {
+  const parts = [
+    listing.size,
+    formatListingCondition(listing.condition),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
 
 /** Sold date gets its own column once the panel can fit it beside the price. */
 const WIDE_LISTING_COLUMNS = "@min-[22rem]:block";
 
 function DesktopListingRow({ listing }: { listing: SoldListing }) {
-  const meta = [listing.size, listing.condition].filter(Boolean).join(" \u00b7 ");
+  const meta = listingMetaLine(listing);
 
   return (
     <div
@@ -54,7 +63,7 @@ function DesktopListingRow({ listing }: { listing: SoldListing }) {
 }
 
 function MobileListingCard({ listing }: { listing: SoldListing }) {
-  const meta = [listing.size, listing.condition].filter(Boolean).join(" · ");
+  const meta = listingMetaLine(listing);
 
   return (
     <li className="flex gap-3 py-4">
@@ -143,26 +152,13 @@ function PhotoStrip({ listings }: { listings: SoldListing[] }) {
   );
 }
 
-export function ListingsTable({ result }: { result: MarketplaceResult }) {
-  const activeView = useResultsView();
+function ListingsTableContent({ result }: { result: MarketplaceResult }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const panelView = result.listingKind;
   const [visibleCount, setVisibleCount] = useState(COMPS_PAGE_SIZE);
 
   const resetVisibleCount = useCallback(() => {
     setVisibleCount(COMPS_PAGE_SIZE);
   }, []);
-
-  useEffect(() => {
-    if (activeView !== panelView) {
-      detailsRef.current?.removeAttribute("open");
-      resetVisibleCount();
-    }
-  }, [activeView, panelView, resetVisibleCount]);
-
-  useEffect(() => {
-    resetVisibleCount();
-  }, [result.marketplace, result.listings.length, resetVisibleCount]);
 
   useEffect(() => {
     const node = detailsRef.current;
@@ -259,4 +255,12 @@ export function ListingsTable({ result }: { result: MarketplaceResult }) {
       </details>
     </div>
   );
+}
+
+export function ListingsTable({ result }: { result: MarketplaceResult }) {
+  const activeView = useResultsView();
+  const panelView = result.listingKind;
+  const resetKey = `${result.marketplace}|${result.listings.length}|${activeView === panelView}`;
+
+  return <ListingsTableContent key={resetKey} result={result} />;
 }

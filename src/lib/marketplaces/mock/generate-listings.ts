@@ -4,6 +4,8 @@ import {
   mockGarmentImageUrl,
 } from "@/lib/marketplaces/mock/garment-image";
 import { createRng, hashString } from "@/lib/marketplaces/mock/seeded-random";
+import { USED_CANONICAL_CONDITIONS } from "@/lib/listings/condition-match";
+import { CONDITION_USED_ONLY } from "@/lib/schema";
 import type {
   MarketplaceId,
   SearchQuery,
@@ -86,6 +88,24 @@ const CONDITION_POOL = [
   "Fair",
 ] as const;
 
+type MockCondition = (typeof CONDITION_POOL)[number];
+
+function pickMockListingCondition(
+  query: SearchQuery,
+  pick: <T>(pool: readonly T[]) => T,
+): MockCondition {
+  if (query.condition === CONDITION_USED_ONLY) {
+    return pick(USED_CANONICAL_CONDITIONS);
+  }
+  if (
+    query.condition &&
+    (CONDITION_POOL as readonly string[]).includes(query.condition)
+  ) {
+    return query.condition as MockCondition;
+  }
+  return pick(CONDITION_POOL);
+}
+
 const DAY_MS = 86_400_000;
 
 function titleCase(value: string): string {
@@ -138,7 +158,7 @@ export function generateMockListings(options: {
 
   const listings: SoldListing[] = [];
   for (let i = 0; i < count; i += 1) {
-    const condition = query.condition ?? rng.pick(CONDITION_POOL);
+    const condition = pickMockListingCondition(query, (pool) => rng.pick(pool));
     const size = query.size?.trim() || rng.pick(SIZES);
     // Clamping the normal sample keeps the long tail of a lognormal price
     // distribution without producing comps that are absurd for the garment.

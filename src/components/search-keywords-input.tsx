@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+
+import {
+  mergeInputClassForMobileClear,
+  MobileClearTextField,
+} from "@/components/mobile-text-field-clear";
 
 type SearchKeywordsInputProps = {
   id: string;
@@ -21,16 +26,14 @@ export function SearchKeywordsInput({
 }: SearchKeywordsInputProps) {
   const [value, setValue] = useState(defaultValue);
 
-  useEffect(() => {
-    setValue(defaultValue);
-  }, [defaultValue]);
-
   const showClear = value.length > 0;
 
-  const compactClear = showClear;
-
   return (
-    <div className="relative w-full min-w-0">
+    <MobileClearTextField
+      value={value}
+      clearLabel="Clear keywords"
+      onClear={() => setValue("")}
+    >
       <input
         id={id}
         name={name}
@@ -40,30 +43,9 @@ export function SearchKeywordsInput({
         autoComplete="off"
         required={required}
         enterKeyHint="search"
-        className={[
-          className,
-          compactClear ? "pr-10 md:pr-3" : null,
-        ]
-          .filter(Boolean)
-          .join(" ")}
+        className={mergeInputClassForMobileClear(className, showClear)}
         onChange={(event) => setValue(event.target.value)}
       />
-      {compactClear ? (
-        <button
-          type="button"
-          aria-label="Clear keywords"
-          className={[
-            "absolute right-1 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center",
-            "rounded-md text-xl leading-none text-foreground/75 transition",
-            "hover:bg-surface-muted hover:text-foreground",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30",
-            "md:hidden",
-          ].join(" ")}
-          onClick={() => setValue("")}
-        >
-          <span aria-hidden>×</span>
-        </button>
-      ) : null}
-    </div>
+    </MobileClearTextField>
   );
 }

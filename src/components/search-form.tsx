@@ -2,14 +2,17 @@
 
 import { useSearchState } from "@/components/search-state";
 import { SearchKeywordsInput } from "@/components/search-keywords-input";
+import { SearchOptionalTextInput } from "@/components/search-optional-text-input";
+import { SearchSelectField } from "@/components/search-select-field";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback } from "react";
 
 import { BrandAutocompleteInput } from "@/components/brand-autocomplete-input";
 import { MarketplacePanelMenu } from "@/components/marketplace-panel-menu";
-import { preserveResultsViewOnParams } from "@/lib/results-view";
+import { RESULTS_VIEW_PARAM } from "@/lib/results-view";
 import {
   buildSearchParams,
+  CONDITION_USED_ONLY,
   CONDITIONS,
   DEFAULT_DAYS_BACK,
   SEARCH_PARAM_KEYS,
@@ -71,6 +74,7 @@ export function SearchForm() {
         size: current.size || undefined,
         condition: (current.condition || undefined) as
           | (typeof CONDITIONS)[number]
+          | typeof CONDITION_USED_ONLY
           | undefined,
         daysBack: Number(current.daysBack),
       })
@@ -102,17 +106,23 @@ export function SearchForm() {
           size: read(SEARCH_PARAM_KEYS.size),
           condition: read(SEARCH_PARAM_KEYS.condition) as
             | (typeof CONDITIONS)[number]
+            | typeof CONDITION_USED_ONLY
             | undefined,
           daysBack: Number(data.get(SEARCH_PARAM_KEYS.daysBack)),
         }),
       );
-      preserveResultsViewOnParams(params, searchParams);
+      params.delete(RESULTS_VIEW_PARAM);
 
       const nextSearch = params.toString();
+      const onActiveTab = searchParams.get(RESULTS_VIEW_PARAM) === "active";
 
       beginSearch();
       startTransition(() => {
-        if (nextSearch === currentSearchKey && currentSearchKey.length > 0) {
+        if (
+          nextSearch === currentSearchKey &&
+          currentSearchKey.length > 0 &&
+          !onActiveTab
+        ) {
           router.refresh();
         } else {
           router.push(nextSearch ? `/?${nextSearch}` : "/");
@@ -166,12 +176,12 @@ export function SearchForm() {
         </Field>
 
         <Field label="Size" htmlFor="field-size" className="lg:col-span-1">
-          <input
+          <SearchOptionalTextInput
             id="field-size"
             name={SEARCH_PARAM_KEYS.size}
             defaultValue={current.size}
             placeholder="M"
-            autoComplete="off"
+            clearLabel="Clear size"
             className={FIELD_CLASSES}
           />
         </Field>
@@ -181,34 +191,38 @@ export function SearchForm() {
           htmlFor="field-condition"
           className="lg:col-span-2"
         >
-          <select
+          <SearchSelectField
             id="field-condition"
             name={SEARCH_PARAM_KEYS.condition}
             defaultValue={current.condition}
+            listAriaLabel="Condition options"
             className={FIELD_CLASSES}
-          >
-            <option value="">Any</option>
-            {CONDITIONS.map((condition) => (
-              <option key={condition} value={condition}>
-                {condition}
-              </option>
-            ))}
-          </select>
+            items={[
+              { kind: "option", value: "", label: "Any" },
+              { kind: "option", value: CONDITION_USED_ONLY, label: "Used only" },
+              { kind: "divider" },
+              ...CONDITIONS.map((condition) => ({
+                kind: "option" as const,
+                value: condition,
+                label: condition,
+              })),
+            ]}
+          />
         </Field>
 
         <Field label="Sold within" htmlFor="field-days" className="lg:col-span-2">
-          <select
+          <SearchSelectField
             id="field-days"
             name={SEARCH_PARAM_KEYS.daysBack}
             defaultValue={current.daysBack}
+            listAriaLabel="Sold within options"
             className={FIELD_CLASSES}
-          >
-            {TIME_WINDOWS.map((window) => (
-              <option key={window.days} value={window.days}>
-                {window.label}
-              </option>
-            ))}
-          </select>
+            items={TIME_WINDOWS.map((window) => ({
+              kind: "option" as const,
+              value: String(window.days),
+              label: window.label,
+            }))}
+          />
         </Field>
       </div>
 

@@ -1,4 +1,4 @@
-import { EBAY_CONDITION_IDS } from "@/lib/marketplaces/ebay/condition-ids";
+import { ebayConditionIdsForFilter } from "@/lib/marketplaces/ebay/condition-ids";
 import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
 import type { SearchQuery } from "@/lib/marketplaces/types";
 
@@ -13,9 +13,11 @@ function baseParams(query: SearchQuery): URLSearchParams {
   // eBay's own sidebar filter links include rt=nc; omitting it can produce bad redirects.
   params.set("rt", "nc");
 
-  if (query.condition) {
-    const conditionId = EBAY_CONDITION_IDS[query.condition];
-    if (conditionId) params.set("LH_ItemCondition", conditionId);
+  const conditionIds = ebayConditionIdsForFilter(query.condition);
+  // eBay search URLs accept a single LH_ItemCondition; used-only maps to pre-owned id 3000.
+  const linkOutConditionId = conditionIds[0];
+  if (linkOutConditionId) {
+    params.set("LH_ItemCondition", linkOutConditionId);
   }
 
   return params;

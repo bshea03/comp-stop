@@ -10,6 +10,14 @@ export const CONDITIONS = [
   "Fair",
 ] as const;
 
+/** URL / form value: pre-owned comps only (Excellent, Good, Fair). */
+export const CONDITION_USED_ONLY = "used" as const;
+
+export const CONDITION_QUERY_VALUES = [
+  CONDITION_USED_ONLY,
+  ...CONDITIONS,
+] as const;
+
 export const TIME_WINDOWS = [
   { days: 30, label: "Last 30 days" },
   { days: 60, label: "Last 60 days" },
@@ -39,7 +47,7 @@ export const searchQuerySchema = z.object({
   keywords: z.string().trim().min(1, "Enter a garment, brand, or tag").max(120),
   brand: trimmedText.optional(),
   size: trimmedText.optional(),
-  condition: z.enum(CONDITIONS).optional(),
+  condition: z.enum(CONDITION_QUERY_VALUES).optional(),
   daysBack: z.coerce
     .number()
     .int()

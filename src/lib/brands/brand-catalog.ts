@@ -4,28 +4,18 @@ import { dedupeClothingBrandNames } from "@/lib/brands/build-clothing-brands";
 import { CLOTHING_BRAND_SOURCES } from "@/lib/brands/clothing-brands-data";
 import { getCachedEbayClothingBrands } from "@/lib/brands/ebay-taxonomy-brands";
 
-export type BrandCatalogMeta = {
+export type BrandCatalogResponse = {
   brands: readonly string[];
-  sources: {
-    ebay: number;
-    static: number;
-  };
 };
 
-async function buildBrandCatalog(): Promise<BrandCatalogMeta> {
+async function buildBrandCatalog(): Promise<BrandCatalogResponse> {
   const ebay = await getCachedEbayClothingBrands();
-  const merged = dedupeClothingBrandNames([
+  const brands = dedupeClothingBrandNames([
     ...ebay,
     ...CLOTHING_BRAND_SOURCES,
   ]);
 
-  return {
-    brands: merged,
-    sources: {
-      ebay: ebay.length,
-      static: CLOTHING_BRAND_SOURCES.length,
-    },
-  };
+  return { brands };
 }
 
 export const getBrandCatalog = unstable_cache(

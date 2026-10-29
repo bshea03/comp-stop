@@ -13,20 +13,14 @@ import { CLOTHING_BRANDS } from "@/lib/brands/clothing-brands";
 
 type BrandCatalogContextValue = {
   brands: readonly string[];
-  loaded: boolean;
-  ebayCount: number;
 };
 
 const BrandCatalogContext = createContext<BrandCatalogContextValue>({
   brands: CLOTHING_BRANDS,
-  loaded: false,
-  ebayCount: 0,
 });
 
 export function BrandCatalogProvider({ children }: { children: ReactNode }) {
   const [brands, setBrands] = useState<readonly string[]>(CLOTHING_BRANDS);
-  const [loaded, setLoaded] = useState(false);
-  const [ebayCount, setEbayCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,19 +31,13 @@ export function BrandCatalogProvider({ children }: { children: ReactNode }) {
           signal: AbortSignal.timeout(30_000),
         });
         if (!response.ok) return;
-        const body = (await response.json()) as {
-          brands?: string[];
-          sources?: { ebay?: number };
-        };
+        const body = (await response.json()) as { brands?: string[] };
         if (cancelled || !Array.isArray(body.brands) || body.brands.length === 0) {
           return;
         }
         setBrands(body.brands);
-        setEbayCount(body.sources?.ebay ?? 0);
       } catch {
         // Bundled list remains the fallback.
-      } finally {
-        if (!cancelled) setLoaded(true);
       }
     }
 
@@ -59,10 +47,7 @@ export function BrandCatalogProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const value = useMemo(
-    () => ({ brands, loaded, ebayCount }),
-    [brands, loaded, ebayCount],
-  );
+  const value = useMemo(() => ({ brands }), [brands]);
 
   return (
     <BrandCatalogContext.Provider value={value}>

@@ -12,6 +12,10 @@ import {
 
 import { useBrandCatalog } from "@/components/brand-catalog-context";
 import {
+  mergeInputClassForMobileClear,
+  MobileTextFieldClearButton,
+} from "@/components/mobile-text-field-clear";
+import {
   mergeBrandSuggestions,
   suggestBrandsFromList,
 } from "@/lib/brands/suggest-clothing-brands";
@@ -42,10 +46,6 @@ export function BrandAutocompleteInput({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [liveSuggestions, setLiveSuggestions] = useState<string[]>([]);
 
-  useEffect(() => {
-    setValue(defaultValue);
-  }, [defaultValue]);
-
   const localSuggestions = useMemo(
     () =>
       open
@@ -54,13 +54,12 @@ export function BrandAutocompleteInput({
     [catalogBrands, open, value],
   );
 
-  useEffect(() => {
-    const trimmed = value.trim();
-    if (!open || trimmed.length < 1) {
-      setLiveSuggestions([]);
-      return;
-    }
+  const fetchLiveSuggestions = open && value.trim().length >= 1;
 
+  useEffect(() => {
+    if (!fetchLiveSuggestions) return;
+
+    const trimmed = value.trim();
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       void (async () => {
@@ -84,21 +83,27 @@ export function BrandAutocompleteInput({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [open, value]);
+  }, [fetchLiveSuggestions, value]);
 
   const suggestions = useMemo(
     () =>
       mergeBrandSuggestions(
-        [liveSuggestions, localSuggestions],
+        [fetchLiveSuggestions ? liveSuggestions : [], localSuggestions],
         SUGGEST_LIMIT,
       ),
-    [liveSuggestions, localSuggestions],
+    [fetchLiveSuggestions, liveSuggestions, localSuggestions],
   );
 
   const closeList = useCallback(() => {
     setOpen(false);
     setActiveIndex(-1);
   }, []);
+
+  const clearValue = useCallback(() => {
+    setValue("");
+    setLiveSuggestions([]);
+    closeList();
+  }, [closeList]);
 
   const selectSuggestion = useCallback(
     (brand: string) => {
@@ -148,9 +153,10 @@ export function BrandAutocompleteInput({
   };
 
   const showList = open && suggestions.length > 0;
+  const showClear = value.length > 0;
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative w-full min-w-0">
       <input
         id={id}
         name={name}
@@ -167,7 +173,7 @@ export function BrandAutocompleteInput({
             ? `${listboxId}-option-${activeIndex}`
             : undefined
         }
-        className={className}
+        className={mergeInputClassForMobileClear(className, showClear)}
         onChange={(event) => {
           setValue(event.target.value);
           setOpen(true);
@@ -176,6 +182,10 @@ export function BrandAutocompleteInput({
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
       />
+
+      {showClear ? (
+        <MobileTextFieldClearButton clearLabel="Clear brand" onClear={clearValue} />
+      ) : null}
 
       {showList ? (
         <ul

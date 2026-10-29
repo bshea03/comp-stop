@@ -1,4 +1,4 @@
-import { EBAY_CONDITION_IDS } from "@/lib/marketplaces/ebay/condition-ids";
+import { ebayBrowseConditionFilter } from "@/lib/marketplaces/ebay/condition-ids";
 import { stripEnv } from "@/lib/env";
 import { keywordString } from "@/lib/marketplaces/mock/create-mock-adapter";
 import type { SearchQuery, SoldListing } from "@/lib/marketplaces/types";
@@ -139,12 +139,8 @@ function mapBrowseItem(item: BrowseItemSummary): SoldListing | null {
 
 function browseFilters(query: SearchQuery): string[] {
   const filters: string[] = [];
-  if (query.condition) {
-    const conditionId = EBAY_CONDITION_IDS[query.condition];
-    if (conditionId) {
-      filters.push(`conditionIds:{${conditionId}}`);
-    }
-  }
+  const conditionFilter = ebayBrowseConditionFilter(query.condition);
+  if (conditionFilter) filters.push(conditionFilter);
   return filters;
 }
 

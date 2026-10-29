@@ -14,6 +14,7 @@ import { SearchStateProvider } from "@/components/search-state";
 import { SearchForm, SearchFormSkeleton } from "@/components/search-form";
 import { buildSearchParams } from "@/lib/schema";
 import type { SearchQuery } from "@/lib/marketplaces/types";
+import { conditionFilterLabel } from "@/lib/listings/condition-match";
 import { parseSearchParams, TIME_WINDOWS } from "@/lib/schema";
 
 function QueryRecap({ query }: { query: SearchQuery }) {
@@ -21,7 +22,7 @@ function QueryRecap({ query }: { query: SearchQuery }) {
   const filters = [
     query.brand && `brand ${query.brand}`,
     query.size && `size ${query.size}`,
-    query.condition && query.condition.toLowerCase(),
+    query.condition && conditionFilterLabel(query.condition).toLowerCase(),
     (window?.label ?? `last ${query.daysBack} days`).toLowerCase(),
   ].filter(Boolean);
 
