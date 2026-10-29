@@ -8,7 +8,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   images: {
-    // Image CDNs returned by live marketplace adapters.
+    // Serve marketplace CDN URLs as-is (no Vercel Image Optimization / transformations).
+    unoptimized: true,
+    // Still required for `next/image` allowlist on external hosts.
     remotePatterns: [
       { protocol: "https", hostname: "i.ebayimg.com" },
       { protocol: "https", hostname: "**.cloudfront.net" },
